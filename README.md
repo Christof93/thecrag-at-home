@@ -10,6 +10,9 @@ A personal climbing dashboard built with Flutter, fed by your
 * **World map**: one dot per climbing day, sized by number of ascents.
   Days at the same spot share a dot, and its tooltip lists each date with its
   ascent count and hardest grade.
+* **Days out per year**: grouped columns of how many days you climbed sport,
+  boulders and trad each year. Tap a year to select it.
+* **Most visited crags**: ranked by days out in the selected period.
 * Period filter (last 12 months, each year, all time) and summary tiles.
 
 It ships with generated demo data (`assets/data/ascents.json`) until you
@@ -85,6 +88,8 @@ with "GitHub Actions" as the source.
 | `lib/models/ascent.dart` | Ascent / day / dataset models (pure Dart, shared with the CLI) |
 | `lib/models/grades.dart` | Grade parser: French, YDS, UIAA, Ewbank, Font, V-scale |
 | `lib/widgets/contribution_grid.dart` | GitHub-style calendar |
+| `lib/models/stats.dart` | Days per year by kind, most visited crags |
+| `lib/widgets/year_chart.dart`, `top_crags.dart` | The two charts |
 | `lib/widgets/ascent_map.dart` | `flutter_map` + OpenStreetMap world map |
 | `lib/pages/dashboard_page.dart` | Dashboard layout, filters, stats |
 | `tool/fetch_ascents.dart` | theCrag Logbook Read API / CSV → `assets/data/ascents.json` |

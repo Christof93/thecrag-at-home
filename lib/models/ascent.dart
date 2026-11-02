@@ -6,6 +6,23 @@ library;
 
 import 'grades.dart';
 
+/// Broad kind of climbing, used to split days out into categories.
+enum ClimbKind {
+  sport('Sport'),
+  boulder('Boulder'),
+  trad('Trad');
+
+  const ClimbKind(this.label);
+  final String label;
+
+  static ClimbKind? parse(Object? v) {
+    for (final k in values) {
+      if (k.name == v) return k;
+    }
+    return null;
+  }
+}
+
 class Ascent {
   Ascent({
     required this.id,
@@ -20,6 +37,7 @@ class Ascent {
     this.lon,
     this.url,
     this.discipline,
+    this.kind,
   });
 
   final String id;
@@ -41,6 +59,17 @@ class Ascent {
   /// Whether the climb is a boulder or a route, when known. Disambiguates
   /// grades like `5+` (Font on a boulder, UIAA on a route).
   final Discipline? discipline;
+
+  /// Sport / trad / boulder, when the data source says so.
+  final ClimbKind? kind;
+
+  /// [kind], or a guess from the grade for data without it (demo data, CSV).
+  ClimbKind get climbKind =>
+      kind ??
+      (discipline == Discipline.boulder ||
+              parsedGrade?.discipline == Discipline.boulder
+          ? ClimbKind.boulder
+          : ClimbKind.sport);
 
   bool get hasLocation => lat != null && lon != null;
 
@@ -79,6 +108,7 @@ class Ascent {
       'route' => Discipline.route,
       _ => null,
     },
+    kind: ClimbKind.parse(j['kind']),
   );
 
   Map<String, dynamic> toJson() => {
@@ -94,6 +124,7 @@ class Ascent {
     if (lon != null) 'lon': lon,
     if (url != null) 'url': url,
     if (discipline != null) 'discipline': discipline!.name,
+    if (kind != null) 'kind': kind!.name,
   };
 }
 

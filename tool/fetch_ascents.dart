@@ -270,6 +270,11 @@ Future<({List<Ascent> ascents, String? climber})> syncLogbook(
   return (ascents: updated.ascents, climber: updated.climber);
 }
 
+/// Layout version of the cache file. Raise it whenever the normalised ascents
+/// gain fields, so an older cache is rebuilt with a full download instead of
+/// being kept (and merged into) until the weekly refresh.
+const cacheVersion = 2;
+
 /// Normalised ascents plus the state needed for incremental syncs.
 class SyncCache {
   SyncCache({required this.ascents, this.since, this.lastFull, this.climber});
@@ -286,6 +291,7 @@ class SyncCache {
     try {
       final j = (jsonDecode(f.readAsStringSync()) as Map)
           .cast<String, dynamic>();
+      if (j['version'] != cacheVersion) return null;
       return SyncCache(
         since: _int(j['since']),
         lastFull: j['lastFull'] == null
@@ -307,6 +313,7 @@ class SyncCache {
     f.parent.createSync(recursive: true);
     f.writeAsStringSync(
       jsonEncode({
+        'version': cacheVersion,
         'since': ?since,
         'lastFull': ?lastFull?.toIso8601String(),
         'climber': ?climber,
@@ -344,6 +351,12 @@ Ascent? parseLogbookAscent(Map<String, dynamic> m, String baseUrl) {
       ? Discipline.boulder
       : Discipline.route;
 
+  final kind = routeStyle == 'boulder' || gearStyle == 'boulder'
+      ? ClimbKind.boulder
+      : routeStyle == 'trad'
+      ? ClimbKind.trad
+      : ClimbKind.sport;
+
   final routeId = _str(route['id']);
   final stub = _str(route['urlAncestorStub'] ?? parent?['urlAncestorStub']);
   final url = routeId == null
@@ -369,6 +382,7 @@ Ascent? parseLogbookAscent(Map<String, dynamic> m, String baseUrl) {
     lon: pos?.$2,
     url: url,
     discipline: discipline,
+    kind: kind,
   );
 }
 

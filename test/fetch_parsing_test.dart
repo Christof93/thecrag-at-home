@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thecrag_at_home/models/ascent.dart';
 import 'package:thecrag_at_home/models/grades.dart';
 
 import '../tool/fetch_ascents.dart';
@@ -118,6 +119,7 @@ void main() {
     expect(a.country, 'Switzerland');
     expect((a.lat, a.lon), (47.125524, 9.122874)); // sector, [lon, lat]
     expect(a.discipline, Discipline.route);
+    expect(a.kind, ClimbKind.sport);
     expect(
       a.url,
       'https://www.thecrag.com/climbing/switzerland/alpen/glarner-alpen'
@@ -134,7 +136,16 @@ void main() {
     expect(a.area, isNull);
     expect((a.lat, a.lon), (46.43, 8.84)); // crag, sector has no geometry
     expect(a.discipline, Discipline.boulder);
+    expect(a.kind, ClimbKind.boulder);
     expect(a.parsedGrade!.discipline, Discipline.boulder); // Font, not UIAA
+  });
+
+  test('recognises trad routes', () {
+    final trad = {
+      ...sportAscent,
+      'route': {...(sportAscent['route'] as Map), 'style': 'Trad'},
+    };
+    expect(parseLogbookAscent(trad, 'https://x')!.kind, ClimbKind.trad);
   });
 
   group('syncLogbook', () {
@@ -186,6 +197,32 @@ void main() {
       expect(r.ascents, hasLength(1));
     });
   });
+
+  test(
+    'a cache from an older format is rebuilt with a full download',
+    () async {
+      final tmp = Directory.systemTemp.createTempSync('oldcache');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final cache = File('${tmp.path}/cache.json')
+        ..writeAsStringSync(
+          jsonEncode({
+            // no "version": written before ascents had a kind
+            'since': 1700000000,
+            'lastFull': DateTime.now().toUtc().toIso8601String(),
+            'ascents': [
+              {'id': '9', 'date': '2020-01-01', 'route': 'Old'},
+            ],
+          }),
+        );
+      final api = FakeApi({
+        null: [response()],
+      });
+      final r = await syncLogbook(api, cache);
+      expect(api.calls, [(1, null)]);
+      expect(r.ascents.map((a) => a.id), isNot(contains('9')));
+      expect(SyncCache.load(cache), isNotNull); // saved in the current format
+    },
+  );
 
   test('parses logbook csv', () {
     const csv =
