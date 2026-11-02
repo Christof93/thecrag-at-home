@@ -1,49 +1,83 @@
-# theCrag API notes
+# theCrag Logbook Read API
 
-**Status: the official documentation page has not been saved here yet.**
-The page at <https://www.thecrag.com/article/API> could not be downloaded
-from the cloud workspace that bootstrapped this project, because its network
-policy blocks `www.thecrag.com`. To store it, run this from your own machine
-(or after allowing the domain in the cloud environment):
+Summary of [Personal API Keys - Logbook Read Access](https://www.thecrag.com/de/artikel/logbookreadapi),
+checked against the live API in November 2026. `tool/fetch_ascents.dart`
+implements it.
 
-```bash
-curl -L https://www.thecrag.com/article/API -o docs/thecrag_api_article.html
+## Keys and limits
+
+* Only **supporters** can issue and use keys (Settings › API Keys). A key
+  reads only the logbook of the account that issued it, including
+  **private notes**.
+* Keys expire after a maximum lifetime, and an account can only have a
+  limited number of active keys.
+* Every call uses tokens from a **weekly per-account budget**. The budget
+  size isn't published; the remaining balance is shown under Settings › API
+  Keys. Use `since` for incremental updates rather than re-downloading the
+  whole logbook.
+
+## Endpoint
+
+```
+GET https://www.thecrag.com/api/logbook/ascents
+X-CData-Key: key=<your-api-key>
 ```
 
-## Assumptions the fetcher makes (unverified)
+The account comes from the key. (A `?key=` query parameter also works, but
+the header is the documented way and keeps the key out of URLs and logs.)
 
-`tool/fetch_ascents.dart` was written without access to the docs or the live
-API, so it relies on these assumptions. Each is configurable or
-handled tolerantly:
-
-| Assumption | Default | Override |
+| Parameter | Type | Meaning |
 | --- | --- | --- |
-| Base URL | `https://www.thecrag.com` | `THECRAG_BASE_URL` |
-| Auth | key sent both as `?key=` query parameter and `X-CData-Key` header | edit `TheCragApi._get` |
-| Ascent listing | `GET /api/facet/ascents/by/{account}?perPage=500&page=N` | `THECRAG_ASCENTS_PATH` |
-| Node (route/crag) details incl. coordinates | `GET /api/node/id/{id}` | `THECRAG_NODE_PATH` |
+| `page` | integer | Page number, 250 ascents per page |
+| `since` | Unix epoch | Only ascents created or updated after this time |
 
-Response parsing is shape-agnostic:
+Every request checks that the key exists and hasn't been revoked or
+expired, that the owner is still a supporter, and that the weekly budget
+isn't used up.
 
-* **Ascent rows**: the first list in the response whose objects have a
-  date-like key (`date`, `ascentDate`, `tickDate`, `when`, ...), or array rows
-  paired with a list of field names.
-* **Fields**: route name/grade come from `route.{name,grade}` or flat keys.
-  Crag, area and country come from flat keys or the `ancestors` path. Style
-  comes from `tick`/`ascentType`/`style`.
-* **Coordinates**: any `lat`/`latitude` + `lon`/`long`/`lng`/`longitude`
-  pair, or GeoJSON `coordinates: [lon, lat]`, searched in the ascent itself,
-  then in the route node, then up the crag/area ancestors.
+## Response
 
-## Verifying against the real API
-
-```bash
-THECRAG_API_KEY=... THECRAG_ACCOUNT=... \
-  dart run tool/fetch_ascents.dart --dump api_dump
+```json
+{
+  "data": {
+    "account": { "name": "...", "login": "...", "ascentCount": 519, ... },
+    "ascents": [ ... ],
+    "numberAscents": 520,
+    "page": "1",
+    "perPage": 250
+  }
+}
 ```
 
-Then inspect `api_dump/*.json` (the key is masked in the recorded URL). If
-the endpoints or field names differ, adjust the env vars or
-`parseAscentMap` / `findCoordinates`. The unit tests in
-`test/fetch_parsing_test.dart` are a good place to paste a real (trimmed)
-response.
+* `numberAscents` counts the ascents matching the query, so with `since` it
+  is the number of changed ascents, not the logbook size.
+* `page` may come back as a string.
+
+### Ascent fields used by the fetcher
+
+| Field | Notes |
+| --- | --- |
+| `id` | Ascent id |
+| `epoch` | Created / last updated (Unix time); the next `since` value |
+| `date` | Day of the climb, e.g. `2017-08-22T00:00:00Z`. Missing on a few historical entries; `logDate` is used then |
+| `grade` | Grade logged with the ascent (optional); else `route.grade` |
+| `tick.label` | `onsight`, `flash`, `redpoint`, `send`, `tick`, `dog`, `working`, `attempt`, `retreat`, ... |
+| `climbedGearStyle` | `sport`, `boulder`, `trad`, ... (often missing) |
+| `markdown` | Your notes, **including private ones**. Not copied into the snapshot |
+| `route.name`, `route.id`, `route.grade`, `route.style` (`Sport` / `Boulder` / `Trad`) | |
+| `route.urlAncestorStub` | Route URL: `https://www.thecrag.com/climbing/<stub>/route/<id>` |
+| `route.ancestors.TLC` | Top-level crag: `name`, `geometry` `[lon, lat]` |
+| `route.ancestors.parent` | Direct parent (sector), `geometry` sometimes missing |
+| `route.ancestors.country` | Country |
+
+## How the fetcher syncs
+
+1. First run (or `--full`): download every page and store the normalised
+   ascents plus the highest `epoch` in `tool/.cache/ascents.json`.
+2. Later runs: request `?since=<highest epoch>` (usually a single call that
+   returns nothing or a few ascents) and merge by ascent id.
+3. Incremental requests can't report deleted ascents, so a full download is
+   repeated once the last one is more than 7 days old.
+
+The GitHub Actions workflow keeps `tool/.cache` between runs with
+`actions/cache`, so the daily refresh costs one call on most days.

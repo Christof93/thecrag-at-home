@@ -14,7 +14,6 @@
     }
   },
   "secrets": {
-    "THECRAG_API_KEY": { "description": "Personal theCrag API key" },
-    "THECRAG_ACCOUNT": { "description": "theCrag account name or id" }
+    "THECRAG_API_KEY": { "description": "Personal theCrag API key" }
   }
 }

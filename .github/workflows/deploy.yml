@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       THECRAG_API_KEY: ${{ secrets.THECRAG_API_KEY }}
-      THECRAG_ACCOUNT: ${{ vars.THECRAG_ACCOUNT }}
       THECRAG_DISPLAY_NAME: ${{ vars.THECRAG_DISPLAY_NAME }}
     steps:
       - uses: actions/checkout@v4
@@ -32,12 +31,14 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
-      - name: Restore theCrag node-coordinate cache
+      # Keeps the synced logbook between runs, so the daily refresh only asks
+      # theCrag for ascents changed since the last run (API calls cost tokens).
+      - name: Restore theCrag logbook cache
         uses: actions/cache@v4
         with:
           path: tool/.cache
-          key: thecrag-nodes-${{ github.run_id }}
-          restore-keys: thecrag-nodes-
+          key: thecrag-logbook-${{ github.run_id }}
+          restore-keys: thecrag-logbook-
 
       - name: Fetch ascents from theCrag
         if: env.THECRAG_API_KEY != '' && github.event_name != 'pull_request'
