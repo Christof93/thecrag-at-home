@@ -49,6 +49,49 @@ void main() {
     expect(a.id, '1');
   });
 
+  test('parses the logbook read API shape', () {
+    final body = {
+      'data': {
+        'account': {'id': 1, 'name': 'Chris'},
+        'numberAscents': 1,
+        'page': '1',
+        'perPage': 250,
+        'ascents': [
+          {
+            'id': 7,
+            'epoch': 1771193431,
+            'date': '2025-05-03',
+            'tick': {'label': 'redpoint', 'name': 'Red point'},
+            'route': {
+              'id': 55,
+              'name': 'Baz',
+              'grade': '7a',
+              'ancestors': {
+                'parent': {
+                  'id': 2,
+                  'name': 'Sector A',
+                  'geometry': {
+                    'type': 'Point',
+                    'coordinates': [8.5, 47.2],
+                  },
+                },
+                'TLC': {'id': 3, 'name': 'Brione'},
+                'country': {'id': 4, 'name': 'Switzerland'},
+              },
+            },
+          },
+        ],
+      },
+    };
+    final a = parseAscentMap(findAscentRows(body).first, 'https://x')!;
+    expect(a.route, 'Baz');
+    expect(a.style, 'redpoint');
+    expect(a.crag, 'Sector A');
+    expect(a.area, 'Brione');
+    expect(a.country, 'Switzerland');
+    expect((a.lat, a.lon), (47.2, 8.5));
+  });
+
   test('finds coordinates', () {
     expect(
       findCoordinates({

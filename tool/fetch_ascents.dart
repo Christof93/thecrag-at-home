@@ -1,8 +1,12 @@
 // Fetches your ascents from the theCrag API and writes the snapshot the app
 // reads (assets/data/ascents.json).
 //
-//   THECRAG_API_KEY=... THECRAG_ACCOUNT=myusername \
-//     dart run tool/fetch_ascents.dart
+//   THECRAG_API_KEY=... dart run tool/fetch_ascents.dart
+//
+// Uses the Logbook Read API (GET /api/logbook/ascents, header
+// `X-CData-Key: key=<key>`); the account is derived from the key. If
+// THECRAG_API_KEY is unset the header is omitted, which works behind a proxy
+// that injects it.
 //
 // Alternatively import a logbook CSV exported from theCrag website (the API
 // key is then only used to look up crag coordinates):
@@ -17,13 +21,11 @@
 //
 // Environment:
 //   THECRAG_API_KEY      your personal API key (required for API mode)
-//   THECRAG_ACCOUNT      your theCrag account name or numeric id
+//   THECRAG_ACCOUNT      optional display name (defaults to the account in the API response)
 //   THECRAG_BASE_URL     default https://www.thecrag.com
-//   THECRAG_ASCENTS_PATH default /api/facet/ascents/by/{account}
-//   THECRAG_NODE_PATH    default /api/node/id/{id}
+//   THECRAG_ASCENTS_PATH default /api/logbook/ascents
 //
-// The endpoint paths are configurable because the parser was written
-// without live access to the API; see docs/thecrag_api.md.
+// See docs/thecrag_api.md.
 import 'dart:convert';
 import 'dart:io';
 
@@ -38,8 +40,7 @@ Future<void> main(List<String> args) async {
   final api = TheCragApi(
     baseUrl: env['THECRAG_BASE_URL'] ?? 'https://www.thecrag.com',
     apiKey: key,
-    ascentsPath:
-        env['THECRAG_ASCENTS_PATH'] ?? '/api/facet/ascents/by/{account}',
+    ascentsPath: env['THECRAG_ASCENTS_PATH'] ?? '/api/logbook/ascents',
     nodePath: env['THECRAG_NODE_PATH'] ?? '/api/node/id/{id}',
     dumpDir: opts['dump'],
   );
@@ -49,20 +50,16 @@ Future<void> main(List<String> args) async {
     raw = parseLogbookCsv(File(opts['csv']!).readAsStringSync());
     stderr.writeln('Read ${raw.length} ascents from CSV.');
   } else {
-    if (key == null || account == null) {
-      stderr.writeln('Set THECRAG_API_KEY and THECRAG_ACCOUNT (or use --csv).');
-      exit(64);
-    }
-    raw = await api.fetchAscents(account);
+    raw = await api.fetchAscents();
     stderr.writeln('Fetched ${raw.length} ascents from the API.');
   }
 
-  if (!opts.containsKey('no-geo') && key != null) {
+  if (!opts.containsKey('no-geo') && key != null && opts['csv'] != null) {
     await api.fillCoordinates(raw, cacheFile: File('tool/.cache/nodes.json'));
   }
 
   final dataset = AscentDataset(
-    climber: env['THECRAG_DISPLAY_NAME'] ?? account,
+    climber: env['THECRAG_DISPLAY_NAME'] ?? account ?? api.accountName,
     generated: DateTime.now().toUtc(),
     ascents: [for (final r in raw) r.toAscent()],
   );
@@ -150,6 +147,9 @@ class TheCragApi {
   final _client = http.Client();
   int _dumpN = 0;
 
+  /// Display name from `data.account`, set after [fetchAscents].
+  String? accountName;
+
   Future<Object?> _get(
     String path, [
     Map<String, String> query = const {},
@@ -158,7 +158,6 @@ class TheCragApi {
       queryParameters: {
         ...Uri.parse('$baseUrl$path').queryParameters,
         ...query,
-        'key': ?apiKey,
       },
     );
     for (var attempt = 0; ; attempt++) {
@@ -166,7 +165,7 @@ class TheCragApi {
         uri,
         headers: {
           'Accept': 'application/json',
-          'X-CData-Key': ?apiKey,
+          if (apiKey != null) 'X-CData-Key': 'key=$apiKey',
           'User-Agent': 'thecrag-at-home (personal dashboard)',
         },
       );
@@ -182,7 +181,7 @@ class TheCragApi {
         );
         f.parent.createSync(recursive: true);
         f.writeAsStringSync(
-          '// GET ${uri.replace(queryParameters: {...uri.queryParameters, 'key': '***'})}\n// HTTP ${res.statusCode}\n${res.body}',
+          '// GET $uri\n// HTTP ${res.statusCode}\n${res.body}',
         );
       }
       if (res.statusCode != 200) {
@@ -195,16 +194,17 @@ class TheCragApi {
     }
   }
 
-  /// Pages through the ascents facet search of an account.
-  Future<List<RawAscent>> fetchAscents(String account) async {
+  /// Pages through `GET /api/logbook/ascents` (250 ascents per page).
+  Future<List<RawAscent>> fetchAscents() async {
     final result = <RawAscent>[];
     final seen = <String>{};
-    const perPage = 500;
     for (var page = 1; page < 1000; page++) {
-      final body = await _get(
-        ascentsPath.replaceAll('{account}', Uri.encodeComponent(account)),
-        {'perPage': '$perPage', 'page': '$page'},
-      );
+      final body = await _get(ascentsPath, {'page': '$page'});
+      final data = body is Map ? body['data'] : null;
+      if (data is Map) {
+        final acc = data['account'];
+        if (acc is Map) accountName ??= _str(acc['name'] ?? acc['login']);
+      }
       final rows = findAscentRows(body);
       var added = 0;
       for (final row in rows) {
@@ -214,8 +214,10 @@ class TheCragApi {
           added++;
         }
       }
-      stderr.writeln('  page $page: ${rows.length} rows');
-      if (rows.length < perPage || added == 0) break;
+      final total = data is Map ? data['numberAscents'] : null;
+      stderr.writeln('  page $page: ${rows.length} rows (total $total)');
+      if (rows.isEmpty || added == 0) break;
+      if (total is num && seen.length >= total) break;
     }
     return result;
   }
@@ -387,6 +389,13 @@ RawAscent? parseAscentMap(Map<String, dynamic> m, String baseUrl) {
 
   // Ancestors / location path: list of {id, name} from planet down to crag.
   final ancestors = <Map<String, dynamic>>[];
+  // Logbook API: route.ancestors is {parent, TLC, country}.
+  final ancMap = route?['ancestors'];
+  Map<String, dynamic>? ancNode(String k) => ancMap is Map && ancMap[k] is Map
+      ? (ancMap[k] as Map).cast<String, dynamic>()
+      : null;
+  final aParent = ancNode('parent'), aTlc = ancNode('TLC');
+  final aCountry = ancNode('country');
   for (final k in ['ancestors', 'parents', 'location', 'path', 'crumbs']) {
     final v = m[k] ?? route?[k];
     if (v is List) {
@@ -398,12 +407,15 @@ RawAscent? parseAscentMap(Map<String, dynamic> m, String baseUrl) {
   }
   final crag =
       _str(m['crag'] ?? m['cragName'] ?? route?['crag']) ??
+      _str(aParent?['name']) ??
       (ancestors.length >= 2 ? _str(ancestors[ancestors.length - 1]) : null);
   final area =
       _str(m['area'] ?? m['areaName']) ??
+      _str(aTlc?['name']) ??
       (ancestors.length >= 3 ? _str(ancestors[ancestors.length - 2]) : null);
   final country =
       _str(m['country'] ?? m['countryName']) ??
+      _str(aCountry?['name']) ??
       (ancestors.length >= 2 ? _str(ancestors[1]) : null);
 
   final routeId = _str(
@@ -418,13 +430,20 @@ RawAscent? parseAscentMap(Map<String, dynamic> m, String baseUrl) {
   final id =
       _str(_pick(m, ['id', 'ascentID', 'ascentId'])) ??
       '${routeId ?? routeName}-${dayKey(date)}';
-  final directCoords = findCoordinates(m);
+  final tick = m['tick'];
+  final directCoords =
+      findCoordinates(m) ??
+      findCoordinates(aParent) ??
+      findCoordinates(aTlc) ??
+      findCoordinates(aCountry);
   return RawAscent(
     id: id,
     date: date,
     route: routeName ?? 'Unknown route',
     grade: grade,
-    style: _str(_pick(m, ['tick', 'tickType', 'ascentType', 'style', 'type'])),
+    style: tick is Map
+        ? _str(tick['label'] ?? tick['name'])
+        : _str(_pick(m, ['tick', 'tickType', 'ascentType', 'style', 'type'])),
     crag: crag,
     area: area,
     country: country,
