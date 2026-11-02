@@ -20,16 +20,20 @@ choices are **how the data gets refreshed** and **who may see the page**.
 ## GitHub Pages (set up in this repo)
 
 1. Repository **Settings → Secrets and variables → Actions**:
-   * Secret `THECRAG_API_KEY`: your personal API key (theCrag Settings ›
+   * **Repository secret** `THECRAG_API_KEY` (not an environment,
+     Codespaces or Dependabot secret, which this job can't see): your
+     personal API key (theCrag Settings ›
      API Keys; supporters only).
    * Optional variable `THECRAG_DISPLAY_NAME`: the title shown in the app
      (defaults to your theCrag display name).
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Merge to `main`, or run the workflow manually (**Actions → Build & deploy →
+3. Merge into the repository's default branch, or run the workflow manually (**Actions → Build & deploy →
    Run workflow**). The site appears at
    `https://<user>.github.io/thecrag-at-home/` and refreshes daily at 04:17 UTC.
 
-Without the secret, the workflow deploys the demo data.
+Only runs on the default branch fetch your data and deploy; pull requests
+just build and test. If the secret is missing, the fetch step fails with a
+message saying so.
 
 ## Going live instead of snapshots
 

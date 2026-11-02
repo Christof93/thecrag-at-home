@@ -1,8 +1,8 @@
 name: Build & deploy
 
+# Deploys from the repository's default branch, whatever it is called.
 on:
   push:
-    branches: [main]
   pull_request:
   schedule:
     - cron: "17 4 * * *" # refresh ascents daily
@@ -17,11 +17,22 @@ concurrency:
 
 jobs:
   build:
+    # Pushes to other branches are covered by their pull request run.
+    if: github.event_name != 'push' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.target.outputs.publish }}
     env:
       THECRAG_API_KEY: ${{ secrets.THECRAG_API_KEY }}
       THECRAG_DISPLAY_NAME: ${{ vars.THECRAG_DISPLAY_NAME }}
     steps:
+      # Publish (fetch real data + deploy) only from the default branch.
+      # Scheduled runs always run on the default branch.
+      - id: target
+        run: echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+        env:
+          PUBLISH: ${{ github.event_name == 'schedule' || (github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch) }}
+
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
@@ -41,8 +52,13 @@ jobs:
           restore-keys: thecrag-logbook-
 
       - name: Fetch ascents from theCrag
-        if: env.THECRAG_API_KEY != '' && github.event_name != 'pull_request'
-        run: dart run tool/fetch_ascents.dart
+        if: steps.target.outputs.publish == 'true'
+        run: |
+          if [ -z "$THECRAG_API_KEY" ]; then
+            echo "::error::THECRAG_API_KEY is empty. Add it under Settings > Secrets and variables > Actions > Repository secrets (not an environment, Codespaces or Dependabot secret)."
+            exit 1
+          fi
+          dart run tool/fetch_ascents.dart
 
       - name: Build web app
         run: >
@@ -50,12 +66,12 @@ jobs:
           --base-href "/${{ github.event.repository.name }}/"
 
       - uses: actions/upload-pages-artifact@v3
-        if: github.event_name != 'pull_request'
+        if: steps.target.outputs.publish == 'true'
         with:
           path: build/web
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: needs.build.outputs.publish == 'true'
     needs: build
     runs-on: ubuntu-latest
     permissions:
