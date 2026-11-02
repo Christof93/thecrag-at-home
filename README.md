@@ -13,7 +13,11 @@ A personal climbing dashboard built with Flutter, fed by your
 * **Days out per year**: grouped columns of how many days you climbed sport,
   boulders and trad each year. Tap a year to select it.
 * **Most visited crags**: ranked by days out in the selected period.
-* Period filter (last 12 months, each year, all time) and summary tiles.
+* Period filter (last 12 months, each year, all time) and summary tiles,
+  including a **Multipitch** tile: ascents where you logged two or more
+  pitches, and how many pitches that adds up to. theCrag doesn't expose a
+  route's total pitch count, so only the pitches you logged individually
+  are counted.
 
 It ships with generated demo data (`assets/data/ascents.json`) until you
 fetch your own.

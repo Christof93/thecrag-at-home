@@ -156,6 +156,29 @@ void main() {
     expect(AscentDataset.fromJson({'climber': 'Chris'}).climber, 'Chris');
   });
 
+  test('counts logged pitches', () {
+    final multi = {
+      ...sportAscent,
+      'pitch': [
+        {'number': 1, 'grade': '6a'},
+        {'number': 2, 'grade': '6b'},
+        {'number': 3, 'grade': '5c'},
+      ],
+    };
+    final a = parseLogbookAscent(multi, 'https://x')!;
+    expect(a.pitches, 3);
+    expect(a.isMultipitch, isTrue);
+    expect(jsonEncode(a.toJson()), contains('"pitches":3'));
+    expect(parseLogbookAscent(sportAscent, 'https://x')!.pitches, isNull);
+    final one = {
+      ...sportAscent,
+      'pitch': [
+        {'number': 1},
+      ],
+    };
+    expect(parseLogbookAscent(one, 'https://x')!.isMultipitch, isFalse);
+  });
+
   test('recognises trad routes', () {
     final trad = {
       ...sportAscent,

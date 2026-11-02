@@ -79,6 +79,22 @@ void main() {
     });
   });
 
+  test('multipitchSummary counts ascents with two or more logged pitches', () {
+    Ascent p(String id, int? pitches) =>
+        Ascent(id: id, date: DateTime(2024, 1, 1), route: id, pitches: pitches);
+    final s = multipitchSummary([
+      p('a', 6),
+      p('b', 2),
+      p('c', 1),
+      p('d', null),
+    ]);
+    expect(s.ascents, 2); // a single logged pitch is a single-pitch route
+    expect(s.pitches, 8);
+    expect(p('x', 3).isMultipitch, isTrue);
+    expect(p('x', 1).isMultipitch, isFalse);
+    expect(multipitchSummary(const []).ascents, 0);
+  });
+
   test('niceStep gives about four gridlines', () {
     expect(DaysPerYearChart.niceStep(1), 1);
     expect(DaysPerYearChart.niceStep(18), 5);

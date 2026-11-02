@@ -350,12 +350,15 @@ class _Stats extends StatelessWidget {
     final crags = {for (final a in ascents) a.crag ?? a.area}..remove(null);
     final countries = {for (final a in ascents) a.country}..remove(null);
 
+    final multi = multipitchSummary(ascents);
     final tiles = [
       ('Ascents', '${ascents.length}', null),
       ('Days out', '${days.length}', null),
       ('Crags', '${crags.length}', '${countries.length} countries'),
       if (hr != null) ('Hardest route', hr.grade!, hr.route),
       if (hb != null) ('Hardest boulder', hb.grade!, hb.route),
+      if (multi.ascents > 0)
+        ('Multipitch', '${multi.ascents}', '${multi.pitches} pitches logged'),
     ];
     final theme = Theme.of(context);
     return Wrap(

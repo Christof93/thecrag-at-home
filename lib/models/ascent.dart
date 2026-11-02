@@ -38,6 +38,7 @@ class Ascent {
     this.url,
     this.discipline,
     this.kind,
+    this.pitches,
   });
 
   final String id;
@@ -62,6 +63,14 @@ class Ascent {
 
   /// Sport / trad / boulder, when the data source says so.
   final ClimbKind? kind;
+
+  /// Number of pitches logged individually on this ascent, if any. It is not
+  /// the number of pitches of the route (theCrag doesn't say), only those
+  /// you logged, so a route with 9 pitches of which you logged 5 gives 5.
+  final int? pitches;
+
+  /// Two or more pitches were logged.
+  bool get isMultipitch => (pitches ?? 0) >= 2;
 
   /// [kind], or a guess from the grade for data without it (demo data, CSV).
   ClimbKind get climbKind =>
@@ -109,6 +118,7 @@ class Ascent {
       _ => null,
     },
     kind: ClimbKind.parse(j['kind']),
+    pitches: (j['pitches'] as num?)?.toInt(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -125,6 +135,7 @@ class Ascent {
     if (url != null) 'url': url,
     if (discipline != null) 'discipline': discipline!.name,
     if (kind != null) 'kind': kind!.name,
+    if (pitches != null) 'pitches': pitches,
   };
 }
 
