@@ -166,7 +166,9 @@ class TheCragApi {
         uri,
         headers: {
           'Accept': 'application/json',
-          'X-CData-Key': ?apiKey,
+          // theCrag expects the header value in the form `key=<api key>`.
+          if (apiKey != null)
+            'X-CData-Key': apiKey!.startsWith('key=') ? apiKey! : 'key=$apiKey',
           'User-Agent': 'thecrag-at-home (personal dashboard)',
         },
       );
