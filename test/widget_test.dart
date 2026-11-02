@@ -4,6 +4,7 @@ import 'package:thecrag_at_home/data/ascent_repository.dart';
 import 'package:thecrag_at_home/models/ascent.dart';
 import 'package:thecrag_at_home/pages/dashboard_page.dart';
 import 'package:thecrag_at_home/widgets/contribution_grid.dart';
+import 'package:thecrag_at_home/widgets/year_chart.dart';
 
 class _FakeRepo extends AscentRepository {
   @override
@@ -52,5 +53,10 @@ void main() {
     expect(find.text('2 ascents on 1 days'), findsOneWidget);
     expect(find.text('7a'), findsOneWidget); // hardest route tile
     expect(find.byType(ContributionGrid), findsOneWidget);
+    expect(find.text('Days out per year'), findsOneWidget);
+    expect(find.byType(DaysPerYearChart), findsOneWidget);
+    expect(find.text('Most visited crags'), findsOneWidget);
+    expect(find.text('Crag A'), findsOneWidget);
+    expect(find.text('1 day'), findsOneWidget); // two ascents, one day
   });
 }
