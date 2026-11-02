@@ -1,8 +1,7 @@
 // Fetches your ascents from the theCrag API and writes the snapshot the app
 // reads (assets/data/ascents.json).
 //
-//   THECRAG_API_KEY=... THECRAG_ACCOUNT=myusername \
-//     dart run tool/fetch_ascents.dart
+//   THECRAG_API_KEY=... dart run tool/fetch_ascents.dart
 //
 // Alternatively import a logbook CSV exported from theCrag website (the API
 // key is then only used to look up crag coordinates):
@@ -17,9 +16,10 @@
 //
 // Environment:
 //   THECRAG_API_KEY      your personal API key (required for API mode)
-//   THECRAG_ACCOUNT      your theCrag account name or numeric id
+//   THECRAG_ACCOUNT      your theCrag account name or id (only needed if
+//                        THECRAG_ASCENTS_PATH contains {account})
 //   THECRAG_BASE_URL     default https://www.thecrag.com
-//   THECRAG_ASCENTS_PATH default /api/facet/ascents/by/{account}
+//   THECRAG_ASCENTS_PATH default /api/logbook/ascents (the key's own logbook)
 //   THECRAG_NODE_PATH    default /api/node/id/{id}
 //
 // The endpoint paths are configurable because the parser was written
@@ -39,7 +39,7 @@ Future<void> main(List<String> args) async {
     baseUrl: env['THECRAG_BASE_URL'] ?? 'https://www.thecrag.com',
     apiKey: key,
     ascentsPath:
-        env['THECRAG_ASCENTS_PATH'] ?? '/api/facet/ascents/by/{account}',
+        env['THECRAG_ASCENTS_PATH'] ?? '/api/logbook/ascents',
     nodePath: env['THECRAG_NODE_PATH'] ?? '/api/node/id/{id}',
     dumpDir: opts['dump'],
   );
@@ -49,11 +49,16 @@ Future<void> main(List<String> args) async {
     raw = parseLogbookCsv(File(opts['csv']!).readAsStringSync());
     stderr.writeln('Read ${raw.length} ascents from CSV.');
   } else {
-    if (key == null || account == null) {
-      stderr.writeln('Set THECRAG_API_KEY and THECRAG_ACCOUNT (or use --csv).');
+    if (key == null) {
+      stderr.writeln('Set THECRAG_API_KEY (or use --csv).');
       exit(64);
     }
-    raw = await api.fetchAscents(account);
+    if (account == null && api.ascentsPath.contains('{account}')) {
+      stderr.writeln('THECRAG_ASCENTS_PATH contains {account}: '
+          'set THECRAG_ACCOUNT.');
+      exit(64);
+    }
+    raw = await api.fetchAscents(account ?? '');
     stderr.writeln('Fetched ${raw.length} ascents from the API.');
   }
 
@@ -158,7 +163,6 @@ class TheCragApi {
       queryParameters: {
         ...Uri.parse('$baseUrl$path').queryParameters,
         ...query,
-        'key': ?apiKey,
       },
     );
     for (var attempt = 0; ; attempt++) {
@@ -184,7 +188,7 @@ class TheCragApi {
         );
         f.parent.createSync(recursive: true);
         f.writeAsStringSync(
-          '// GET ${uri.replace(queryParameters: {...uri.queryParameters, 'key': '***'})}\n// HTTP ${res.statusCode}\n${res.body}',
+          '// GET $uri\n// HTTP ${res.statusCode}\n${res.body}',
         );
       }
       if (res.statusCode != 200) {

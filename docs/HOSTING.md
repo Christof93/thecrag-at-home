@@ -21,7 +21,6 @@ choices are **how the data gets refreshed** and **who may see the page**.
 
 1. Repository **Settings → Secrets and variables → Actions**:
    * Secret `THECRAG_API_KEY`: your API key.
-   * Variable `THECRAG_ACCOUNT`: your theCrag account name or id.
    * Optional variable `THECRAG_DISPLAY_NAME`: the title shown in the app.
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Merge to `main`, or run the workflow manually (**Actions → Build & deploy →
