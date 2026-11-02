@@ -36,6 +36,23 @@ List<YearKindDays> daysPerYearByKind(Iterable<Ascent> ascents) {
   ];
 }
 
+/// Ascents with two or more logged pitches, and those pitches.
+class MultipitchSummary {
+  const MultipitchSummary(this.ascents, this.pitches);
+
+  final int ascents;
+  final int pitches;
+}
+
+MultipitchSummary multipitchSummary(Iterable<Ascent> ascents) {
+  var count = 0, pitches = 0;
+  for (final a in ascents.where((a) => a.isMultipitch)) {
+    count++;
+    pitches += a.pitches!;
+  }
+  return MultipitchSummary(count, pitches);
+}
+
 /// A crag (or area) and how often it was visited.
 class CragVisits {
   CragVisits(this.name, this.country, this.days, this.ascents);

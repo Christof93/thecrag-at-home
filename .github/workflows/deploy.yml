@@ -24,7 +24,8 @@ jobs:
       publish: ${{ steps.target.outputs.publish }}
     env:
       THECRAG_API_KEY: ${{ secrets.THECRAG_API_KEY }}
-      THECRAG_DISPLAY_NAME: ${{ vars.THECRAG_DISPLAY_NAME }}
+      # A repository variable or, failing that, a repository secret.
+      THECRAG_DISPLAY_NAME: ${{ vars.THECRAG_DISPLAY_NAME || secrets.THECRAG_DISPLAY_NAME }}
     steps:
       # Publish (fetch real data + deploy) only from the default branch.
       # Scheduled runs always run on the default branch.

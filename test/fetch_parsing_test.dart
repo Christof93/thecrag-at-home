@@ -140,6 +140,45 @@ void main() {
     expect(a.parsedGrade!.discipline, Discipline.boulder); // Font, not UIAA
   });
 
+  test('display name: configured value wins, blank falls back to theCrag', () {
+    expect(resolveDisplayName('Chris', 'chrible'), 'Chris');
+    expect(resolveDisplayName('  Chris ', 'chrible'), 'Chris');
+    // An unset GitHub Actions variable arrives as an empty string.
+    expect(resolveDisplayName('', 'chrible'), 'chrible');
+    expect(resolveDisplayName('  ', 'chrible'), 'chrible');
+    expect(resolveDisplayName(null, 'chrible'), 'chrible');
+    expect(resolveDisplayName(null, null), isNull);
+  });
+
+  test('a blank climber name in the data is ignored', () {
+    final ds = AscentDataset.fromJson({'climber': '', 'ascents': []});
+    expect(ds.climber, isNull);
+    expect(AscentDataset.fromJson({'climber': 'Chris'}).climber, 'Chris');
+  });
+
+  test('counts logged pitches', () {
+    final multi = {
+      ...sportAscent,
+      'pitch': [
+        {'number': 1, 'grade': '6a'},
+        {'number': 2, 'grade': '6b'},
+        {'number': 3, 'grade': '5c'},
+      ],
+    };
+    final a = parseLogbookAscent(multi, 'https://x')!;
+    expect(a.pitches, 3);
+    expect(a.isMultipitch, isTrue);
+    expect(jsonEncode(a.toJson()), contains('"pitches":3'));
+    expect(parseLogbookAscent(sportAscent, 'https://x')!.pitches, isNull);
+    final one = {
+      ...sportAscent,
+      'pitch': [
+        {'number': 1},
+      ],
+    };
+    expect(parseLogbookAscent(one, 'https://x')!.isMultipitch, isFalse);
+  });
+
   test('recognises trad routes', () {
     final trad = {
       ...sportAscent,

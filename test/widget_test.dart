@@ -22,6 +22,7 @@ class _FakeRepo extends AscentRepository {
           id: '1',
           date: d,
           route: 'Alpha',
+          pitches: 3,
           grade: '6b',
           crag: 'Crag A',
           lat: 47,
@@ -53,6 +54,8 @@ void main() {
     expect(find.text('2 ascents on 1 days'), findsOneWidget);
     expect(find.text('7a'), findsOneWidget); // hardest route tile
     expect(find.byType(ContributionGrid), findsOneWidget);
+    expect(find.text('Multipitch'), findsOneWidget);
+    expect(find.text('3 pitches logged'), findsOneWidget);
     expect(find.text('Days out per year'), findsOneWidget);
     expect(find.byType(DaysPerYearChart), findsOneWidget);
     expect(find.text('Most visited crags'), findsOneWidget);

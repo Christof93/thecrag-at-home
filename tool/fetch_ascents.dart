@@ -69,7 +69,7 @@ Future<void> main(List<String> args) async {
   }
 
   final dataset = AscentDataset(
-    climber: env['THECRAG_DISPLAY_NAME'] ?? climber,
+    climber: resolveDisplayName(env['THECRAG_DISPLAY_NAME'], climber),
     generated: DateTime.now().toUtc(),
     ascents: ascents..sort((a, b) => a.date.compareTo(b.date)),
   );
@@ -80,6 +80,14 @@ Future<void> main(List<String> args) async {
     'Wrote ${dataset.ascents.length} ascents '
     '($located with coordinates) to ${out.path}.',
   );
+}
+
+/// The name shown in the app: [configured] (THECRAG_DISPLAY_NAME) if it has
+/// text, else the account name from theCrag. GitHub Actions passes an unset
+/// variable as an empty string, which must not count as a name.
+String? resolveDisplayName(String? configured, String? fromApi) {
+  final name = configured?.trim();
+  return name == null || name.isEmpty ? fromApi : name;
 }
 
 Map<String, String?> _parseArgs(List<String> args) {
@@ -273,7 +281,7 @@ Future<({List<Ascent> ascents, String? climber})> syncLogbook(
 /// Layout version of the cache file. Raise it whenever the normalised ascents
 /// gain fields, so an older cache is rebuilt with a full download instead of
 /// being kept (and merged into) until the weekly refresh.
-const cacheVersion = 2;
+const cacheVersion = 3;
 
 /// Normalised ascents plus the state needed for incremental syncs.
 class SyncCache {
@@ -383,6 +391,9 @@ Ascent? parseLogbookAscent(Map<String, dynamic> m, String baseUrl) {
     url: url,
     discipline: discipline,
     kind: kind,
+    pitches: m['pitch'] is List && (m['pitch'] as List).isNotEmpty
+        ? (m['pitch'] as List).length
+        : null,
   );
 }
 
