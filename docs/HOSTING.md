@@ -24,8 +24,10 @@ choices are **how the data gets refreshed** and **who may see the page**.
      Codespaces or Dependabot secret, which this job can't see): your
      personal API key (theCrag Settings ›
      API Keys; supporters only).
-   * Optional variable `THECRAG_DISPLAY_NAME`: the title shown in the app
-     (defaults to your theCrag display name).
+   * Optional `THECRAG_DISPLAY_NAME`: the title shown in the app (defaults
+     to your theCrag display name). Add it under the **Variables** tab or as
+     a secret, at repository level; environment-level values (such as in
+     `gh-pages`) are not visible to the build job.
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Merge into the repository's default branch, or run the workflow manually (**Actions → Build & deploy →
    Run workflow**). The site appears at

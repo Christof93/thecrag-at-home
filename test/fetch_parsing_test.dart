@@ -140,6 +140,22 @@ void main() {
     expect(a.parsedGrade!.discipline, Discipline.boulder); // Font, not UIAA
   });
 
+  test('display name: configured value wins, blank falls back to theCrag', () {
+    expect(resolveDisplayName('Chris', 'chrible'), 'Chris');
+    expect(resolveDisplayName('  Chris ', 'chrible'), 'Chris');
+    // An unset GitHub Actions variable arrives as an empty string.
+    expect(resolveDisplayName('', 'chrible'), 'chrible');
+    expect(resolveDisplayName('  ', 'chrible'), 'chrible');
+    expect(resolveDisplayName(null, 'chrible'), 'chrible');
+    expect(resolveDisplayName(null, null), isNull);
+  });
+
+  test('a blank climber name in the data is ignored', () {
+    final ds = AscentDataset.fromJson({'climber': '', 'ascents': []});
+    expect(ds.climber, isNull);
+    expect(AscentDataset.fromJson({'climber': 'Chris'}).climber, 'Chris');
+  });
+
   test('recognises trad routes', () {
     final trad = {
       ...sportAscent,

@@ -149,7 +149,10 @@ class AscentDataset {
   final bool demo;
 
   factory AscentDataset.fromJson(Map<String, dynamic> j) => AscentDataset(
-    climber: j['climber'] as String?,
+    climber: switch ((j['climber'] as String?)?.trim()) {
+      null || '' => null,
+      final name => name,
+    },
     generated: j['generated'] == null
         ? null
         : DateTime.tryParse(j['generated'] as String),
