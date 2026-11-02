@@ -19,6 +19,7 @@ class Ascent {
     this.lat,
     this.lon,
     this.url,
+    this.discipline,
   });
 
   final String id;
@@ -37,12 +38,16 @@ class Ascent {
   final double? lon;
   final String? url;
 
+  /// Whether the climb is a boulder or a route, when known. Disambiguates
+  /// grades like `5+` (Font on a boulder, UIAA on a route).
+  final Discipline? discipline;
+
   bool get hasLocation => lat != null && lon != null;
 
   /// Whether this ascent counts as a completed climb (used for "hardest").
   bool get isSend => !nonSendStyles.contains(style?.toLowerCase().trim());
 
-  ParsedGrade? get parsedGrade => Grades.parse(grade);
+  ParsedGrade? get parsedGrade => Grades.parse(grade, discipline: discipline);
 
   static const nonSendStyles = {
     'attempt',
@@ -69,6 +74,11 @@ class Ascent {
     lat: (j['lat'] as num?)?.toDouble(),
     lon: (j['lon'] as num?)?.toDouble(),
     url: j['url'] as String?,
+    discipline: switch (j['discipline']) {
+      'boulder' => Discipline.boulder,
+      'route' => Discipline.route,
+      _ => null,
+    },
   );
 
   Map<String, dynamic> toJson() => {
@@ -83,6 +93,7 @@ class Ascent {
     if (lat != null) 'lat': lat,
     if (lon != null) 'lon': lon,
     if (url != null) 'url': url,
+    if (discipline != null) 'discipline': discipline!.name,
   };
 }
 

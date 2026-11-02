@@ -21,6 +21,18 @@ void main() {
     expect(Grades.parse('7a')!.discipline, Discipline.route);
     expect(s('V6'), s('7A'));
   });
+  test('boulder hint reads ambiguous grades as Font', () {
+    ParsedGrade? b(String g) => Grades.parse(g, discipline: Discipline.boulder);
+    expect(b('5+')!.discipline, Discipline.boulder);
+    expect(b('6a')!.score, s('6A'));
+    expect(b('5B')!.score < b('6A')!.score, isTrue);
+    expect(b('4')!.score < b('6A')!.score, isTrue);
+    expect(Grades.parse('5+')!.discipline, Discipline.route); // UIAA
+    expect(
+      Grades.parse('5+', discipline: Discipline.route)!.discipline,
+      Discipline.route,
+    );
+  });
   test('unknown grades', () {
     expect(Grades.parse('A2'), isNull);
     expect(Grades.parse(''), isNull);

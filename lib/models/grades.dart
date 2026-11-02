@@ -158,8 +158,28 @@ class Grades {
     'XII': 12,
   };
 
+  // Low Font grades with letters, folded onto the coarse low end of [font].
+  static const _fontLow = {
+    '3+': '3', '4A': '4', '4A+': '4', '4B': '4', '4B+': '4+', '4C': '4+', //
+    '4C+': '4+', '5A': '5', '5A+': '5', '5B': '5', '5B+': '5+', '5C': '5+',
+    '5C+': '5+',
+  };
+
+  /// Parses a Font grade such as `6B+`, `5+` or `4c`.
+  static ParsedGrade? _parseFont(String input, String g) {
+    final m = RegExp(r'^(?:[Ff][Bb]?)?([3-9][ABCabc]?\+?)').firstMatch(g);
+    if (m == null) return null;
+    var f = m.group(1)!.toUpperCase();
+    f = _fontLow[f] ?? f;
+    final i = _fb(f);
+    return i < 0 ? null : ParsedGrade(input, i.toDouble(), Discipline.boulder);
+  }
+
   /// Parse a grade string. Returns null if it is not recognised.
-  static ParsedGrade? parse(String? input) {
+  ///
+  /// [discipline] is a hint for grades that are ambiguous on their own: a
+  /// boulder graded `5+` or `6a` is read as Font rather than UIAA / French.
+  static ParsedGrade? parse(String? input, {Discipline? discipline}) {
     if (input == null) return null;
     var g = input.trim();
     if (g.isEmpty) return null;
@@ -167,6 +187,11 @@ class Grades {
     // Keep "5.10a/b" style by only splitting when there's a space or after
     // a full grade token.
     g = g.split(RegExp(r'\s+')).first;
+
+    if (discipline == Discipline.boulder) {
+      final f = _parseFont(input, g);
+      if (f != null) return f;
+    }
 
     // V-scale: V4, V4/5, V4-5, VB
     final v = RegExp(r'^[Vv](B|\d{1,2})').firstMatch(g);
@@ -176,10 +201,10 @@ class Grades {
     }
 
     // Font: f6A / Fb7A+ / 7A+ (uppercase letter => boulder)
-    final fb = RegExp(r'^(?:[Ff][Bb]?)?([3-9][ABC]?\+?)$').firstMatch(g);
-    if (fb != null && RegExp(r'[ABC]').hasMatch(fb.group(1)!)) {
-      final i = _fb(fb.group(1)!);
-      if (i >= 0) return ParsedGrade(input, i.toDouble(), Discipline.boulder);
+    final fb = RegExp(r'^(?:[Ff][Bb]?)?([3-9][ABC]\+?)$').firstMatch(g);
+    if (fb != null) {
+      final f = _parseFont(input, g);
+      if (f != null) return f;
     }
 
     // YDS: 5.10a, 5.11, 5.12b/c

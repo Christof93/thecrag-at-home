@@ -18,7 +18,7 @@ fetch your own.
 ## How the data flows
 
 ```
-theCrag API ──(API key, server side)──▶ tool/fetch_ascents.dart
+theCrag Logbook Read API ──(API key, server side)──▶ tool/fetch_ascents.dart
                                               │ writes
                                               ▼
                                assets/data/ascents.json ──▶ Flutter app
@@ -28,7 +28,8 @@ The app never calls theCrag directly. Your API key would otherwise be
 visible to anyone opening the site, and browsers would likely block the
 cross-origin requests anyway. Instead, a small Dart CLI fetches and
 normalises your ascents into a JSON snapshot, which is bundled into the app at
-build time. The GitHub Actions workflow re-runs it daily.
+build time. The GitHub Actions workflow re-runs it daily. Your private
+ascent notes are never copied into the snapshot.
 
 ## Getting started
 
@@ -40,18 +41,23 @@ flutter run -d chrome                  # or: flutter run -d web-server --web-por
 
 ### Fetch your own ascents
 
+Create a personal API key under theCrag **Settings › API Keys** (needs
+supporter status), then:
+
 ```bash
 export THECRAG_API_KEY=...             # your personal key
-dart run tool/fetch_ascents.dart --dump api_dump
+dart run tool/fetch_ascents.dart
 ```
 
-`--dump` saves the raw API responses to `api_dump/`, which helps check the
-parser against the real API (see [docs/thecrag_api.md](docs/thecrag_api.md)).
-Coordinates of routes and crags are looked up once and cached in
-`tool/.cache/nodes.json`.
+The first run downloads the whole logbook (250 ascents per call). API calls
+use tokens from a weekly budget, so later runs only ask for ascents changed
+since the last one, using the cache in `tool/.cache/ascents.json`. Once a
+week, or with `--full`, everything is downloaded again so deleted ascents
+disappear. `--dump api_dump` saves the raw responses. See
+[docs/thecrag_api.md](docs/thecrag_api.md) for the API details.
 
-No API access, or the endpoints don't match? Export your logbook as CSV from
-the theCrag website and run:
+No API key? Export your logbook as CSV from the theCrag website and run
+(the map stays empty, as the CSV has no coordinates):
 
 ```bash
 dart run tool/fetch_ascents.dart --csv ~/Downloads/logbook.csv
@@ -69,7 +75,8 @@ flutter analyze && flutter test
 
 See [docs/HOSTING.md](docs/HOSTING.md). In short: GitHub Pages and the
 included workflow work out of the box. Add `THECRAG_API_KEY` as a repository
-secret, then enable Pages with "GitHub Actions" as the source.
+secret, then enable Pages
+with "GitHub Actions" as the source.
 
 ## Project layout
 
@@ -80,7 +87,7 @@ secret, then enable Pages with "GitHub Actions" as the source.
 | `lib/widgets/contribution_grid.dart` | GitHub-style calendar |
 | `lib/widgets/ascent_map.dart` | `flutter_map` + OpenStreetMap world map |
 | `lib/pages/dashboard_page.dart` | Dashboard layout, filters, stats |
-| `tool/fetch_ascents.dart` | theCrag API / CSV → `assets/data/ascents.json` |
+| `tool/fetch_ascents.dart` | theCrag Logbook Read API / CSV → `assets/data/ascents.json` |
 | `scripts/setup_cloud_env.sh` | Flutter install for cloud workspaces / CI boxes |
 | `.devcontainer/` | GitHub Codespaces config |
 | `.github/workflows/deploy.yml` | Test, fetch, build and deploy to GitHub Pages |

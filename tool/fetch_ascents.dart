@@ -1,78 +1,79 @@
-// Fetches your ascents from the theCrag API and writes the snapshot the app
-// reads (assets/data/ascents.json).
+// Fetches your ascents from theCrag's Logbook Read API and writes the
+// snapshot the app reads (assets/data/ascents.json).
 //
 //   THECRAG_API_KEY=... dart run tool/fetch_ascents.dart
 //
-// Alternatively import a logbook CSV exported from theCrag website (the API
-// key is then only used to look up crag coordinates):
+// The API is documented at
+// https://www.thecrag.com/de/artikel/logbookreadapi (see docs/thecrag_api.md).
+// Calls cost tokens from a weekly per-account budget, so after a first full
+// download only new or changed ascents are fetched (`since=<epoch>`), merged
+// into a local cache (tool/.cache/ascents.json). A full download is repeated
+// once a week, or with --full, to pick up deleted ascents.
+//
+// Without API access, import a logbook CSV exported from the theCrag website
+// instead (no map coordinates in that case):
 //
 //   dart run tool/fetch_ascents.dart --csv ~/Downloads/logbook.csv
 //
 // Options:
-//   --out <file>   output file (default assets/data/ascents.json)
-//   --csv <file>   read ascents from a theCrag logbook CSV export
-//   --dump <dir>   save raw API responses, handy for debugging the parser
-//   --no-geo       skip coordinate lookups
+//   --out <file>    output file (default assets/data/ascents.json)
+//   --cache <file>  sync cache (default tool/.cache/ascents.json)
+//   --full          ignore the cache and download the whole logbook
+//   --csv <file>    read ascents from a theCrag logbook CSV export
+//   --dump <dir>    save raw API responses, handy for debugging the parser
 //
 // Environment:
-//   THECRAG_API_KEY      your personal API key (required for API mode)
-//   THECRAG_ACCOUNT      your theCrag account name or id (only needed if
-//                        THECRAG_ASCENTS_PATH contains {account})
-//   THECRAG_BASE_URL     default https://www.thecrag.com
-//   THECRAG_ASCENTS_PATH default /api/logbook/ascents (the key's own logbook)
-//   THECRAG_NODE_PATH    default /api/node/id/{id}
-//
-// The endpoint paths are configurable because the parser was written
-// without live access to the API; see docs/thecrag_api.md.
+//   THECRAG_API_KEY       your personal API key (required for API mode)
+//   THECRAG_DISPLAY_NAME  name shown in the app (default: your theCrag name)
+//   THECRAG_BASE_URL      default https://www.thecrag.com
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:thecrag_at_home/models/ascent.dart';
+import 'package:thecrag_at_home/models/grades.dart';
+
+/// How long an incrementally updated cache is trusted before the whole
+/// logbook is downloaded again (incremental syncs cannot see deletions).
+const fullRefreshAfter = Duration(days: 7);
 
 Future<void> main(List<String> args) async {
   final opts = _parseArgs(args);
   final env = Platform.environment;
-  final key = env['THECRAG_API_KEY'];
-  final account = env['THECRAG_ACCOUNT'];
-  final api = TheCragApi(
-    baseUrl: env['THECRAG_BASE_URL'] ?? 'https://www.thecrag.com',
-    apiKey: key,
-    ascentsPath:
-        env['THECRAG_ASCENTS_PATH'] ?? '/api/logbook/ascents',
-    nodePath: env['THECRAG_NODE_PATH'] ?? '/api/node/id/{id}',
-    dumpDir: opts['dump'],
-  );
+  final baseUrl = env['THECRAG_BASE_URL'] ?? 'https://www.thecrag.com';
+  final out = File(opts['out'] ?? 'assets/data/ascents.json');
 
-  List<RawAscent> raw;
+  String? climber;
+  List<Ascent> ascents;
   if (opts['csv'] != null) {
-    raw = parseLogbookCsv(File(opts['csv']!).readAsStringSync());
-    stderr.writeln('Read ${raw.length} ascents from CSV.');
+    ascents = parseLogbookCsv(File(opts['csv']!).readAsStringSync());
+    stderr.writeln('Read ${ascents.length} ascents from CSV.');
   } else {
-    if (key == null) {
+    final key = env['THECRAG_API_KEY'];
+    if (key == null || key.isEmpty) {
       stderr.writeln('Set THECRAG_API_KEY (or use --csv).');
       exit(64);
     }
-    if (account == null && api.ascentsPath.contains('{account}')) {
-      stderr.writeln('THECRAG_ASCENTS_PATH contains {account}: '
-          'set THECRAG_ACCOUNT.');
-      exit(64);
-    }
-    raw = await api.fetchAscents(account ?? '');
-    stderr.writeln('Fetched ${raw.length} ascents from the API.');
-  }
-
-  if (!opts.containsKey('no-geo') && key != null) {
-    await api.fillCoordinates(raw, cacheFile: File('tool/.cache/nodes.json'));
+    final api = LogbookApi(
+      baseUrl: baseUrl,
+      apiKey: key,
+      dumpDir: opts['dump'],
+    );
+    final sync = await syncLogbook(
+      api,
+      File(opts['cache'] ?? 'tool/.cache/ascents.json'),
+      forceFull: opts.containsKey('full'),
+    );
+    climber = sync.climber;
+    ascents = sync.ascents;
   }
 
   final dataset = AscentDataset(
-    climber: env['THECRAG_DISPLAY_NAME'] ?? account,
+    climber: env['THECRAG_DISPLAY_NAME'] ?? climber,
     generated: DateTime.now().toUtc(),
-    ascents: [for (final r in raw) r.toAscent()],
+    ascents: ascents..sort((a, b) => a.date.compareTo(b.date)),
   );
   final located = dataset.ascents.where((a) => a.hasLocation).length;
-  final out = File(opts['out'] ?? 'assets/data/ascents.json');
   out.parent.createSync(recursive: true);
   out.writeAsStringSync(const JsonEncoder.withIndent(' ').convert(dataset));
   stderr.writeln(
@@ -82,12 +83,13 @@ Future<void> main(List<String> args) async {
 }
 
 Map<String, String?> _parseArgs(List<String> args) {
+  const flags = {'full'};
   final m = <String, String?>{};
   for (var i = 0; i < args.length; i++) {
     final a = args[i];
     if (!a.startsWith('--')) continue;
     final name = a.substring(2);
-    if (name == 'no-geo') {
+    if (flags.contains(name)) {
       m[name] = null;
     } else if (i + 1 < args.length) {
       m[name] = args[++i];
@@ -96,91 +98,78 @@ Map<String, String?> _parseArgs(List<String> args) {
   return m;
 }
 
-/// Ascent while being assembled, before coordinates are known.
-class RawAscent {
-  RawAscent({
-    required this.id,
-    required this.date,
-    required this.route,
-    this.grade,
-    this.style,
-    this.crag,
-    this.area,
-    this.country,
-    this.url,
-    this.nodeIds = const [],
-    this.lat,
-    this.lon,
+// ---------------------------------------------------------------------------
+// Logbook Read API: GET /api/logbook/ascents?page=N&since=EPOCH
+
+/// One page of `GET /api/logbook/ascents`.
+class LogbookPage {
+  LogbookPage({
+    required this.ascents,
+    required this.total,
+    required this.page,
+    required this.perPage,
+    this.climber,
+    this.maxEpoch,
   });
 
-  final String id;
-  final DateTime date;
-  final String route;
-  final String? grade, style, crag, area, country, url;
+  /// Raw ascent objects as returned by the API.
+  final List<Map<String, dynamic>> ascents;
 
-  /// Candidate node ids to look up coordinates for, most specific first
-  /// (route, then crag/area ancestors).
-  final List<String> nodeIds;
-  double? lat, lon;
+  /// `numberAscents`: ascents matching the query (all pages).
+  final int total;
+  final int page;
+  final int perPage;
+  final String? climber;
+  final int? maxEpoch;
 
-  Ascent toAscent() => Ascent(
-    id: id,
-    date: date,
-    route: route,
-    grade: grade,
-    style: style,
-    crag: crag,
-    area: area,
-    country: country,
-    url: url,
-    lat: lat,
-    lon: lon,
-  );
+  factory LogbookPage.fromJson(Map<String, dynamic> body) {
+    final d = (body['data'] as Map).cast<String, dynamic>();
+    final rows = [
+      for (final a in (d['ascents'] as List? ?? const []))
+        (a as Map).cast<String, dynamic>(),
+    ];
+    final account = d['account'] as Map?;
+    int? maxEpoch;
+    for (final a in rows) {
+      final e = (a['epoch'] as num?)?.toInt();
+      if (e != null && (maxEpoch == null || e > maxEpoch)) maxEpoch = e;
+    }
+    return LogbookPage(
+      ascents: rows,
+      total: _int(d['numberAscents']) ?? rows.length,
+      page: _int(d['page']) ?? 1,
+      perPage: _int(d['perPage']) ?? 250,
+      climber: _str(account?['name'] ?? account?['login']),
+      maxEpoch: maxEpoch,
+    );
+  }
 }
 
-class TheCragApi {
-  TheCragApi({
-    required this.baseUrl,
-    required this.apiKey,
-    required this.ascentsPath,
-    required this.nodePath,
-    this.dumpDir,
-  });
+class LogbookApi {
+  LogbookApi({required this.baseUrl, required this.apiKey, this.dumpDir});
 
   final String baseUrl;
-  final String? apiKey;
-  final String ascentsPath;
-  final String nodePath;
+  final String apiKey;
   final String? dumpDir;
   final _client = http.Client();
   int _dumpN = 0;
 
-  Future<Object?> _get(
-    String path, [
-    Map<String, String> query = const {},
-  ]) async {
-    final uri = Uri.parse('$baseUrl$path').replace(
-      queryParameters: {
-        ...Uri.parse('$baseUrl$path').queryParameters,
-        ...query,
-      },
-    );
+  Future<LogbookPage> fetchPage(int page, {int? since}) async {
+    final uri = Uri.parse(
+      '$baseUrl/api/logbook/ascents',
+    ).replace(queryParameters: {'page': '$page', 'since': ?since?.toString()});
     for (var attempt = 0; ; attempt++) {
       final res = await _client.get(
         uri,
         headers: {
           'Accept': 'application/json',
-          // theCrag expects the header value in the form `key=<api key>`.
-          if (apiKey != null)
-            'X-CData-Key': apiKey!.startsWith('key=') ? apiKey! : 'key=$apiKey',
+          'X-CData-Key': 'key=$apiKey',
           'User-Agent': 'thecrag-at-home (personal dashboard)',
         },
       );
-      if (res.statusCode == 429 || res.statusCode >= 500) {
-        if (attempt < 4) {
-          await Future<void>.delayed(Duration(seconds: 2 << attempt));
-          continue;
-        }
+      if ((res.statusCode == 429 || res.statusCode >= 500) && attempt < 4) {
+        await Future<void>.delayed(Duration(seconds: 2 << attempt));
+        continue;
       }
       if (dumpDir != null) {
         final f = File(
@@ -193,168 +182,216 @@ class TheCragApi {
       }
       if (res.statusCode != 200) {
         throw HttpException(
-          'HTTP ${res.statusCode} for ${uri.path}: '
+          'HTTP ${res.statusCode} for $uri: '
           '${res.body.length > 300 ? res.body.substring(0, 300) : res.body}',
         );
       }
-      return jsonDecode(res.body);
+      return LogbookPage.fromJson(
+        (jsonDecode(res.body) as Map).cast<String, dynamic>(),
+      );
     }
   }
 
-  /// Pages through the ascents facet search of an account.
-  Future<List<RawAscent>> fetchAscents(String account) async {
-    final result = <RawAscent>[];
-    final seen = <String>{};
-    const perPage = 500;
+  /// All ascents created or updated after [since] (everything if null).
+  Future<({List<Map<String, dynamic>> ascents, String? climber, int? maxEpoch})>
+  fetchAll({int? since}) async {
+    final rows = <Map<String, dynamic>>[];
+    String? climber;
+    int? maxEpoch;
     for (var page = 1; page < 1000; page++) {
-      final body = await _get(
-        ascentsPath.replaceAll('{account}', Uri.encodeComponent(account)),
-        {'perPage': '$perPage', 'page': '$page'},
-      );
-      final rows = findAscentRows(body);
-      var added = 0;
-      for (final row in rows) {
-        final a = parseAscentMap(row, baseUrl);
-        if (a != null && seen.add(a.id)) {
-          result.add(a);
-          added++;
-        }
+      final p = await fetchPage(page, since: since);
+      climber ??= p.climber;
+      if (p.maxEpoch != null && (maxEpoch == null || p.maxEpoch! > maxEpoch)) {
+        maxEpoch = p.maxEpoch;
       }
-      stderr.writeln('  page $page: ${rows.length} rows');
-      if (rows.length < perPage || added == 0) break;
+      rows.addAll(p.ascents);
+      stderr.writeln('  page $page: ${p.ascents.length} ascents');
+      if (p.ascents.isEmpty ||
+          p.ascents.length < p.perPage ||
+          rows.length >= p.total) {
+        break;
+      }
     }
-    return result;
+    return (ascents: rows, climber: climber, maxEpoch: maxEpoch);
   }
+}
 
-  /// Looks up coordinates for each ascent's route / crag node, caching
-  /// results on disk.
-  Future<void> fillCoordinates(
-    List<RawAscent> ascents, {
-    required File cacheFile,
-  }) async {
-    final cache = <String, List<double>?>{};
-    if (cacheFile.existsSync()) {
-      final m = jsonDecode(cacheFile.readAsStringSync()) as Map;
-      m.forEach(
-        (k, v) => cache['$k'] = v == null
+/// Brings the local cache up to date and returns all ascents.
+Future<({List<Ascent> ascents, String? climber})> syncLogbook(
+  LogbookApi api,
+  File cacheFile, {
+  bool forceFull = false,
+  DateTime? now,
+}) async {
+  now ??= DateTime.now().toUtc();
+  final cache = SyncCache.load(cacheFile);
+  final full =
+      forceFull ||
+      cache == null ||
+      cache.lastFull == null ||
+      now.difference(cache.lastFull!) > fullRefreshAfter;
+
+  final since = full ? null : cache.since;
+  stderr.writeln(
+    full
+        ? 'Downloading the whole logbook...'
+        : 'Fetching ascents changed since epoch $since...',
+  );
+  final res = await api.fetchAll(since: since);
+
+  final byId = <String, Ascent>{
+    if (!full)
+      for (final a in cache.ascents) a.id: a,
+  };
+  var skipped = 0;
+  for (final row in res.ascents) {
+    final a = parseLogbookAscent(row, api.baseUrl);
+    if (a == null) {
+      skipped++;
+    } else {
+      byId[a.id] = a;
+    }
+  }
+  if (skipped > 0) stderr.writeln('  skipped $skipped ascents without a date');
+  stderr.writeln(
+    '${res.ascents.length} ascents fetched, ${byId.length} in total.',
+  );
+
+  final updated = SyncCache(
+    since: [
+      ?cache?.since,
+      ?res.maxEpoch,
+    ].fold<int?>(null, (m, e) => m == null || e > m ? e : m),
+    lastFull: full ? now : cache.lastFull,
+    climber: res.climber ?? cache?.climber,
+    ascents: byId.values.toList(),
+  );
+  updated.save(cacheFile);
+  return (ascents: updated.ascents, climber: updated.climber);
+}
+
+/// Normalised ascents plus the state needed for incremental syncs.
+class SyncCache {
+  SyncCache({required this.ascents, this.since, this.lastFull, this.climber});
+
+  final List<Ascent> ascents;
+
+  /// Highest `epoch` seen; the next sync asks for changes after it.
+  final int? since;
+  final DateTime? lastFull;
+  final String? climber;
+
+  static SyncCache? load(File f) {
+    if (!f.existsSync()) return null;
+    try {
+      final j = (jsonDecode(f.readAsStringSync()) as Map)
+          .cast<String, dynamic>();
+      return SyncCache(
+        since: _int(j['since']),
+        lastFull: j['lastFull'] == null
             ? null
-            : [for (final x in v as List) (x as num).toDouble()],
+            : DateTime.tryParse(j['lastFull'] as String),
+        climber: j['climber'] as String?,
+        ascents: [
+          for (final a in j['ascents'] as List)
+            Ascent.fromJson((a as Map).cast<String, dynamic>()),
+        ],
       );
+    } on Object catch (e) {
+      stderr.writeln('Ignoring unreadable cache ${f.path}: $e');
+      return null;
     }
-    var lookups = 0;
-    for (final a in ascents) {
-      if (a.lat != null) continue;
-      for (final id in a.nodeIds) {
-        if (!cache.containsKey(id)) {
-          try {
-            final body = await _get(nodePath.replaceAll('{id}', id));
-            final c = findCoordinates(body);
-            cache[id] = c == null ? null : [c.$1, c.$2];
-          } on Object catch (e) {
-            stderr.writeln('  node $id: $e');
-            cache[id] = null;
-          }
-          if (++lookups % 25 == 0) {
-            stderr.writeln('  looked up $lookups nodes...');
-            _saveCache(cacheFile, cache);
-          }
-        }
-        final c = cache[id];
-        if (c != null) {
-          a.lat = c[0];
-          a.lon = c[1];
-          break;
-        }
-      }
-    }
-    _saveCache(cacheFile, cache);
   }
 
-  void _saveCache(File f, Map<String, List<double>?> cache) {
+  void save(File f) {
     f.parent.createSync(recursive: true);
-    f.writeAsStringSync(jsonEncode(cache));
+    f.writeAsStringSync(
+      jsonEncode({
+        'since': ?since,
+        'lastFull': ?lastFull?.toIso8601String(),
+        'climber': ?climber,
+        'ascents': [for (final a in ascents) a.toJson()],
+      }),
+    );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tolerant JSON parsing. theCrag responses wrap results in a `data` object;
-// rows may be maps, or arrays described by a separate list of field names.
+/// Converts one ascent object of the Logbook Read API to an [Ascent].
+///
+/// Private notes (`markdown`) are deliberately not carried over: the
+/// snapshot ends up on a public web page.
+Ascent? parseLogbookAscent(Map<String, dynamic> m, String baseUrl) {
+  // `date` is when the climb happened; a few historical entries only have
+  // `logDate` (when it was logged).
+  final date = _parseDate(m['date']) ?? _parseDate(m['logDate']);
+  if (date == null) return null;
 
-const _dateKeys = ['date', 'ascentDate', 'tickDate', 'when', 'dateClimbed'];
+  final route = (m['route'] as Map?)?.cast<String, dynamic>() ?? const {};
+  final ancestors =
+      (route['ancestors'] as Map?)?.cast<String, dynamic>() ?? const {};
+  Map<String, dynamic>? anc(String k) =>
+      (ancestors[k] as Map?)?.cast<String, dynamic>();
+  final tlc = anc('TLC'), parent = anc('parent'), country = anc('country');
 
-/// Finds the list of ascent records anywhere in [body].
-List<Map<String, dynamic>> findAscentRows(Object? body) {
-  List<Map<String, dynamic>>? found;
-  void visit(Object? node, Map<String, dynamic>? parent) {
-    if (found != null) return;
-    if (node is List && node.isNotEmpty) {
-      if (node.first is Map &&
-          (node.first as Map).keys.any(
-            (k) => _dateKeys.contains(k) || '$k'.toLowerCase().contains('date'),
-          )) {
-        found = [for (final e in node) (e as Map).cast<String, dynamic>()];
-        return;
-      }
-      if (node.first is List && parent != null) {
-        // Array rows + a list of field names somewhere in the parent.
-        final fields = parent.values.whereType<List>().firstWhere(
-          (l) =>
-              l.isNotEmpty &&
-              l.every((x) => x is String) &&
-              l.length == (node.first as List).length,
-          orElse: () => const [],
-        );
-        if (fields.isNotEmpty) {
-          found = [
-            for (final row in node)
-              {
-                for (var i = 0; i < fields.length; i++)
-                  fields[i] as String: (row as List)[i],
-              },
-          ];
-          return;
-        }
-      }
-      for (final e in node) {
-        visit(e, parent);
-      }
-    } else if (node is Map) {
-      final m = node.cast<String, dynamic>();
-      // Prefer obvious keys first.
-      for (final k in ['ascents', 'data', 'results', 'items']) {
-        if (m.containsKey(k)) visit(m[k], m);
-      }
-      for (final v in m.values) {
-        visit(v, m);
-      }
-    }
-  }
+  // Coordinates: the route's sector, else its crag.
+  final pos = _lonLat(parent?['geometry']) ?? _lonLat(tlc?['geometry']);
 
-  visit(body, null);
-  return found ?? const [];
+  final routeStyle = _str(route['style'])?.toLowerCase();
+  final gearStyle = _str(m['climbedGearStyle'])?.toLowerCase();
+  final discipline = routeStyle == null && gearStyle == null
+      ? null
+      : (routeStyle == 'boulder' || gearStyle == 'boulder')
+      ? Discipline.boulder
+      : Discipline.route;
+
+  final routeId = _str(route['id']);
+  final stub = _str(route['urlAncestorStub'] ?? parent?['urlAncestorStub']);
+  final url = routeId == null
+      ? null
+      : stub == null
+      ? '$baseUrl/climbing/route/$routeId'
+      : '$baseUrl/climbing/$stub/route/$routeId';
+
+  final tick = m['tick'];
+  final cragName = _str(tlc?['name']);
+  final sectorName = _str(parent?['name']);
+  return Ascent(
+    id: _str(m['id']) ?? '$routeId-${dayKey(date)}',
+    date: date,
+    route: _str(route['name'] ?? m['label']) ?? 'Unknown route',
+    // The grade logged with the ascent, else the route's consensus grade.
+    grade: _str(m['grade']) ?? _str(route['grade']),
+    style: tick is Map ? _str(tick['label'] ?? tick['name']) : _str(tick),
+    crag: cragName ?? sectorName,
+    area: sectorName != null && sectorName != cragName ? sectorName : null,
+    country: _str(country?['name']),
+    lat: pos?.$1,
+    lon: pos?.$2,
+    url: url,
+    discipline: discipline,
+  );
 }
+
+/// `[lon, lat]` geometry → `(lat, lon)`.
+(double, double)? _lonLat(Object? g) {
+  if (g is! List || g.length < 2 || g[0] is! num || g[1] is! num) return null;
+  final lon = (g[0] as num).toDouble(), lat = (g[1] as num).toDouble();
+  if (lat.abs() > 90 || lon.abs() > 180 || (lat == 0 && lon == 0)) return null;
+  return (lat, lon);
+}
+
+int? _int(Object? v) => v is num ? v.toInt() : int.tryParse('${v ?? ''}');
 
 String? _str(Object? v) {
   if (v == null) return null;
-  if (v is Map) return _str(v['name'] ?? v['label'] ?? v['value']);
   final s = '$v'.trim();
   return s.isEmpty ? null : s;
 }
 
-Object? _pick(Map<String, dynamic> m, List<String> keys) {
-  for (final k in keys) {
-    if (m[k] != null) return m[k];
-  }
-  return null;
-}
-
+/// Calendar day of a date string (time and time zone are ignored, so
+/// `2024-06-01T00:00:00Z` is the 1st everywhere).
 DateTime? _parseDate(Object? v) {
   if (v == null) return null;
-  if (v is num) {
-    final ms = v > 1e11 ? v.toInt() : v.toInt() * 1000;
-    final d = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
-    return DateTime(d.year, d.month, d.day);
-  }
   final s = '$v'.trim();
   final iso = RegExp(r'(\d{4})-(\d{2})-(\d{2})').firstMatch(s);
   if (iso != null) {
@@ -363,121 +400,6 @@ DateTime? _parseDate(Object? v) {
   final dmy = RegExp(r'(\d{1,2})[/.](\d{1,2})[/.](\d{4})').firstMatch(s);
   if (dmy != null) {
     return DateTime(int.parse(dmy[3]!), int.parse(dmy[2]!), int.parse(dmy[1]!));
-  }
-  final d = DateTime.tryParse(s);
-  return d == null ? null : DateTime(d.year, d.month, d.day);
-}
-
-/// Converts one ascent object of unknown exact shape to a [RawAscent].
-RawAscent? parseAscentMap(Map<String, dynamic> m, String baseUrl) {
-  final date = _parseDate(
-    _pick(m, _dateKeys) ??
-        m.entries
-            .where((e) => e.key.toLowerCase().contains('date'))
-            .firstOrNull
-            ?.value,
-  );
-  if (date == null) return null;
-
-  final route = m['route'] is Map
-      ? (m['route'] as Map).cast<String, dynamic>()
-      : null;
-  final routeName = _str(
-    route?['name'] ?? _pick(m, ['routeName', 'route', 'name']),
-  );
-  final grade = _str(
-    _pick(m, ['grade', 'ascentGrade', 'gradeLabel']) ??
-        route?['grade'] ??
-        m['routeGrade'],
-  );
-
-  // Ancestors / location path: list of {id, name} from planet down to crag.
-  final ancestors = <Map<String, dynamic>>[];
-  for (final k in ['ancestors', 'parents', 'location', 'path', 'crumbs']) {
-    final v = m[k] ?? route?[k];
-    if (v is List) {
-      ancestors.addAll(
-        v.whereType<Map>().map((e) => e.cast<String, dynamic>()),
-      );
-      break;
-    }
-  }
-  final crag =
-      _str(m['crag'] ?? m['cragName'] ?? route?['crag']) ??
-      (ancestors.length >= 2 ? _str(ancestors[ancestors.length - 1]) : null);
-  final area =
-      _str(m['area'] ?? m['areaName']) ??
-      (ancestors.length >= 3 ? _str(ancestors[ancestors.length - 2]) : null);
-  final country =
-      _str(m['country'] ?? m['countryName']) ??
-      (ancestors.length >= 2 ? _str(ancestors[1]) : null);
-
-  final routeId = _str(
-    route?['id'] ?? _pick(m, ['routeID', 'routeId', 'route_id', 'nodeID']),
-  );
-  final nodeIds = [
-    ?routeId,
-    for (final a in ancestors.reversed) ?_str(a['id']),
-    ?_str(_pick(m, ['cragID', 'cragId', 'areaID', 'areaId'])),
-  ];
-
-  final id =
-      _str(_pick(m, ['id', 'ascentID', 'ascentId'])) ??
-      '${routeId ?? routeName}-${dayKey(date)}';
-  final directCoords = findCoordinates(m);
-  return RawAscent(
-    id: id,
-    date: date,
-    route: routeName ?? 'Unknown route',
-    grade: grade,
-    style: _str(_pick(m, ['tick', 'tickType', 'ascentType', 'style', 'type'])),
-    crag: crag,
-    area: area,
-    country: country,
-    url: routeId == null ? null : '$baseUrl/climbing/route/$routeId',
-    nodeIds: nodeIds,
-    lat: directCoords?.$1,
-    lon: directCoords?.$2,
-  );
-}
-
-/// Searches a JSON tree for a latitude/longitude pair.
-(double, double)? findCoordinates(Object? body, [int depth = 0]) {
-  if (depth > 6 || body == null) return null;
-  double? n(Object? v) => v is num ? v.toDouble() : double.tryParse('$v');
-  bool ok(double? lat, double? lon) =>
-      lat != null &&
-      lon != null &&
-      lat.abs() <= 90 &&
-      lon.abs() <= 180 &&
-      !(lat == 0 && lon == 0);
-  if (body is Map) {
-    final m = body.cast<String, dynamic>();
-    final lat = n(_pick(m, ['lat', 'latitude', 'Lat']));
-    final lon = n(_pick(m, ['lon', 'long', 'lng', 'longitude', 'Long']));
-    if (ok(lat, lon)) return (lat!, lon!);
-    // GeoJSON-ish {type: Point, coordinates: [lon, lat]}
-    final coords = m['coordinates'];
-    if (coords is List && coords.length >= 2 && coords.first is num) {
-      final lo = n(coords[0]), la = n(coords[1]);
-      if (ok(la, lo)) return (la!, lo!);
-    }
-    for (final k in [
-      'geometry',
-      'location',
-      'point',
-      'centroid',
-      'geo',
-      'data',
-    ]) {
-      final r = findCoordinates(m[k], depth + 1);
-      if (r != null) return r;
-    }
-  } else if (body is List) {
-    for (final e in body.take(5)) {
-      final r = findCoordinates(e, depth + 1);
-      if (r != null) return r;
-    }
   }
   return null;
 }
@@ -524,7 +446,7 @@ List<List<String>> _parseCsv(String text) {
 }
 
 /// Parses a theCrag logbook CSV export, matching columns by header name.
-List<RawAscent> parseLogbookCsv(String text) {
+List<Ascent> parseLogbookCsv(String text) {
   final rows = _parseCsv(text.replaceFirst('﻿', ''));
   if (rows.isEmpty) return const [];
   final header = [for (final h in rows.first) h.toLowerCase().trim()];
@@ -549,23 +471,19 @@ List<RawAscent> parseLogbookCsv(String text) {
   final cCountry = col(['country']);
   final cId = col(['ascent id']);
   final cRouteLink = col(['route link']);
-  final cCragLink = col(['crag link']);
-  final cAreaLink = col(['area link']);
   if (cDate < 0) throw const FormatException('CSV has no date column');
 
   String? at(List<String> r, int i) =>
       i < 0 || i >= r.length || r[i].trim().isEmpty ? null : r[i].trim();
-  String? idFromLink(String? link) =>
-      link == null ? null : RegExp(r'(\d{3,})/?$').firstMatch(link)?.group(1);
 
-  final out = <RawAscent>[];
+  final out = <Ascent>[];
   for (final r in rows.skip(1)) {
     final date = _parseDate(at(r, cDate));
     if (date == null) continue;
     // Prefer the ascent grade, fall back to the route grade.
     final grade = at(r, cGrade) ?? at(r, col(['route grade']));
     out.add(
-      RawAscent(
+      Ascent(
         id: at(r, cId) ?? '${out.length}',
         date: date,
         route: at(r, cRoute) ?? 'Unknown route',
@@ -575,11 +493,6 @@ List<RawAscent> parseLogbookCsv(String text) {
         area: at(r, cArea),
         country: at(r, cCountry),
         url: at(r, cRouteLink),
-        nodeIds: [
-          ?idFromLink(at(r, cRouteLink)),
-          ?idFromLink(at(r, cCragLink)),
-          ?idFromLink(at(r, cAreaLink)),
-        ],
       ),
     );
   }
