@@ -20,11 +20,10 @@ choices are **how the data gets refreshed** and **who may see the page**.
 ## GitHub Pages (set up in this repo)
 
 1. Repository **Settings → Secrets and variables → Actions**:
-   * Secret `THECRAG_API_KEY`: your personal API key (theCrag Settings ›
-     API Keys; supporters only). Either a secret of the **`gh-pages`
-     environment** (Settings → Environments), which the build job uses when
-     it publishes, or a repository secret. Codespaces and Dependabot secrets
-     are not visible to Actions.
+   * **Repository secret** `THECRAG_API_KEY` (not an environment,
+     Codespaces or Dependabot secret, which this job can't see): your
+     personal API key (theCrag Settings ›
+     API Keys; supporters only).
    * Optional variable `THECRAG_DISPLAY_NAME`: the title shown in the app
      (defaults to your theCrag display name).
 2. **Settings → Pages → Build and deployment → Source: GitHub Actions**.

@@ -20,10 +20,6 @@ jobs:
     # Pushes to other branches are covered by their pull request run.
     if: github.event_name != 'push' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
-    # THECRAG_API_KEY is a secret of the "gh-pages" environment, which only
-    # jobs that name it can read. Pull request runs don't need the key, so
-    # they run without an environment (and its branch restrictions).
-    environment: ${{ (github.event_name == 'schedule' || (github.event_name != 'pull_request' && github.ref_name == github.event.repository.default_branch)) && 'gh-pages' || '' }}
     outputs:
       publish: ${{ steps.target.outputs.publish }}
     env:
@@ -59,7 +55,7 @@ jobs:
         if: steps.target.outputs.publish == 'true'
         run: |
           if [ -z "$THECRAG_API_KEY" ]; then
-            echo "::error::THECRAG_API_KEY is empty. Add it as a secret of the gh-pages environment (Settings > Environments > gh-pages) or as a repository secret (Settings > Secrets and variables > Actions)."
+            echo "::error::THECRAG_API_KEY is empty. Add it under Settings > Secrets and variables > Actions > Repository secrets (not an environment, Codespaces or Dependabot secret)."
             exit 1
           fi
           dart run tool/fetch_ascents.dart
