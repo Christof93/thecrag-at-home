@@ -1,0 +1,68 @@
+name: Build & deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * *" # refresh ascents daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      THECRAG_API_KEY: ${{ secrets.THECRAG_API_KEY }}
+      THECRAG_ACCOUNT: ${{ vars.THECRAG_ACCOUNT }}
+      THECRAG_DISPLAY_NAME: ${{ vars.THECRAG_DISPLAY_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Restore theCrag node-coordinate cache
+        uses: actions/cache@v4
+        with:
+          path: tool/.cache
+          key: thecrag-nodes-${{ github.run_id }}
+          restore-keys: thecrag-nodes-
+
+      - name: Fetch ascents from theCrag
+        if: env.THECRAG_API_KEY != '' && github.event_name != 'pull_request'
+        run: dart run tool/fetch_ascents.dart
+
+      - name: Build web app
+        run: >
+          flutter build web --release
+          --base-href "/${{ github.event.repository.name }}/"
+
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: build/web
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
