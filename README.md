@@ -42,7 +42,6 @@ flutter run -d chrome                  # or: flutter run -d web-server --web-por
 
 ```bash
 export THECRAG_API_KEY=...             # your personal key
-export THECRAG_ACCOUNT=your-username   # or numeric account id
 dart run tool/fetch_ascents.dart --dump api_dump
 ```
 
@@ -70,8 +69,7 @@ flutter analyze && flutter test
 
 See [docs/HOSTING.md](docs/HOSTING.md). In short: GitHub Pages and the
 included workflow work out of the box. Add `THECRAG_API_KEY` as a repository
-secret and `THECRAG_ACCOUNT` as a repository variable, then enable Pages
-with "GitHub Actions" as the source.
+secret, then enable Pages with "GitHub Actions" as the source.
 
 ## Project layout
 

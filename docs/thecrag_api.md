@@ -19,8 +19,8 @@ handled tolerantly:
 | Assumption | Default | Override |
 | --- | --- | --- |
 | Base URL | `https://www.thecrag.com` | `THECRAG_BASE_URL` |
-| Auth | key sent both as `?key=` query parameter and `X-CData-Key` header | edit `TheCragApi._get` |
-| Ascent listing | `GET /api/facet/ascents/by/{account}?perPage=500&page=N` | `THECRAG_ASCENTS_PATH` |
+| Auth | header `X-CData-Key: key=<api key>` (verified) | edit `TheCragApi._get` |
+| Ascent listing | `GET /api/logbook/ascents?perPage=500&page=N` (endpoint verified; paging params not yet) | `THECRAG_ASCENTS_PATH` |
 | Node (route/crag) details incl. coordinates | `GET /api/node/id/{id}` | `THECRAG_NODE_PATH` |
 
 Response parsing is shape-agnostic:
@@ -38,11 +38,10 @@ Response parsing is shape-agnostic:
 ## Verifying against the real API
 
 ```bash
-THECRAG_API_KEY=... THECRAG_ACCOUNT=... \
-  dart run tool/fetch_ascents.dart --dump api_dump
+THECRAG_API_KEY=... dart run tool/fetch_ascents.dart --dump api_dump
 ```
 
-Then inspect `api_dump/*.json` (the key is masked in the recorded URL). If
+Then inspect `api_dump/*.json` (the key is only sent as a header, so it is not recorded). If
 the endpoints or field names differ, adjust the env vars or
 `parseAscentMap` / `findCoordinates`. The unit tests in
 `test/fetch_parsing_test.dart` are a good place to paste a real (trimmed)
