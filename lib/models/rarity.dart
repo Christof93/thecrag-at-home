@@ -18,11 +18,12 @@ enum Rarity {
   /// Lower bounds of [uncommon], [rare], [epic] and [legendary] on the
   /// grade scale of [Grades] (French for routes, Font for boulders).
   ///
-  /// Routes by their leading number: up to 4c is common, the 5s uncommon,
-  /// the 6s rare, the 7s epic and 8a upwards legendary. Boulders: up to 5+,
-  /// 6A-6C, 6C+-7B+, 7C-8B and 8B+ upwards.
-  static const _routeCuts = [6.0, 9.0, 15.0, 21.0]; // 5a, 6a, 7a, 8a
-  static const _boulderCuts = [5.0, 10.0, 15.0, 20.0]; // 6A, 6C+, 7C, 8B+
+  /// Routes: up to 5c+ is common, 6a-6c uncommon, 6c+-7b+ rare, 7c-8b epic
+  /// and 8b+ upwards legendary. Boulders go by leading number: up to 4+ is
+  /// common, the 5s uncommon, the 6s rare, the 7s epic and 8A upwards
+  /// legendary.
+  static const _routeCuts = [9.0, 14.0, 19.0, 24.0]; // 6a, 6c+, 7c, 8b+
+  static const _boulderCuts = [3.0, 5.0, 11.0, 17.0]; // 5, 6A, 7A, 8A
 
   /// The tier of [grade], or null if it can't be read. [discipline] picks
   /// the ranges and how ambiguous grades are read.
@@ -47,17 +48,17 @@ enum Rarity {
       (discipline == Discipline.boulder ? _boulderRanges : _routeRanges)[index];
 
   static const _routeRanges = [
-    'up to 4c',
-    '5a – 5c+',
-    '6a – 6c+',
-    '7a – 7c+',
-    '8a and up',
+    'up to 5c+',
+    '6a – 6c',
+    '6c+ – 7b+',
+    '7c – 8b',
+    '8b+ and up',
   ];
   static const _boulderRanges = [
-    'up to 5+',
-    '6A – 6C',
-    '6C+ – 7B+',
-    '7C – 8B',
-    '8B+ and up',
+    'up to 4+',
+    '5 – 5+',
+    '6A – 6C+',
+    '7A – 7C+',
+    '8A and up',
   ];
 }
