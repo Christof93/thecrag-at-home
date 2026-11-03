@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thecrag_at_home/data/ascent_repository.dart';
 import 'package:thecrag_at_home/models/ascent.dart';
+import 'package:thecrag_at_home/models/rarity.dart';
 import 'package:thecrag_at_home/pages/dashboard_page.dart';
 import 'package:thecrag_at_home/widgets/ascent_map.dart';
 import 'package:thecrag_at_home/widgets/contribution_grid.dart';
+import 'package:thecrag_at_home/widgets/grade_badge.dart';
 import 'package:thecrag_at_home/widgets/year_chart.dart';
 
 class _FakeRepo extends AscentRepository {
@@ -192,5 +194,23 @@ void projectsTests() {
     expect(find.text('Projected'), findsOneWidget);
     expect(find.text('Attempted'), findsOneWidget);
     expect(find.text('Nothing here.'), findsNWidgets(2));
+
+    // The 7c project is epic: its card is outlined in the epic colour and
+    // its grade sits in a badge that names the tier.
+    final card = tester.widget<Card>(
+      find.ancestor(of: find.text('Hard project'), matching: find.byType(Card)),
+    );
+    expect(
+      (card.shape! as RoundedRectangleBorder).side.color,
+      rarityColor(Rarity.epic, Brightness.light),
+    );
+    expect(find.byType(GradeBadge), findsOneWidget);
+    expect(find.byTooltip('Epic: 7a – 7c+'), findsOneWidget);
+    // The legend names all five tiers with both grade ranges.
+    expect(find.text('Grade tiers'), findsOneWidget);
+    for (final r in Rarity.values) {
+      expect(find.text(r.label), findsOneWidget);
+    }
+    expect(find.byTooltip('Sport: 7a – 7c+\nBoulder: 7C – 8B'), findsOneWidget);
   });
 }

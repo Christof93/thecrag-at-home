@@ -15,6 +15,14 @@ void main() {
     expect(s('8+'), closeTo(s('7a'), 1)); // UIAA
     expect(s('VII'), closeTo(s('6a'), 1)); // UIAA roman
   });
+  test('plus grades below 6a are French, not UIAA', () {
+    expect(s('5c+'), s('5c') + 0.5);
+    expect(s('5c+') < s('6a'), isTrue);
+    expect(s('5a+') > s('5a') && s('5a+') < s('5b'), isTrue);
+    expect(s('4b+') > s('4b'), isTrue);
+    expect(Grades.parse('5c+')!.discipline, Discipline.route);
+    expect(s('5c+') > s('5c'), isTrue); // used to come out as UIAA 5 (= 4)
+  });
   test('boulder grades', () {
     expect(Grades.parse('V4')!.discipline, Discipline.boulder);
     expect(Grades.parse('7A')!.discipline, Discipline.boulder);

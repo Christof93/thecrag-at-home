@@ -1,21 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Full-bleed square; the artwork stays inside the 80% safe zone. -->
-  <rect width="512" height="512" fill="#238636"/>
-  <path d="M512 150 L512 512 L150 512 Z" fill="#2da44e"/>
+  <rect width="512" height="512" fill="#FFDB58"/>
+  <path d="M512 150 L512 512 L150 512 Z" fill="#F2BE2C"/>
   <g transform="translate(51.2 51.2) scale(0.8)">
-    <g fill="#ffd166">
+    <g fill="#ffffff">
       <circle cx="158" cy="92" r="40"/>
       <circle cx="376" cy="178" r="40"/>
       <circle cx="148" cy="372" r="36"/>
       <circle cx="352" cy="438" r="36"/>
     </g>
-    <g fill="none" stroke="#fff" stroke-width="58" stroke-linecap="round" stroke-linejoin="round">
+    <g fill="none" stroke="#2b2100" stroke-width="58" stroke-linecap="round" stroke-linejoin="round">
       <path d="M258 214 L244 330"/>
       <path d="M258 214 L206 160 L158 92"/>
       <path d="M258 214 L330 214 L376 178"/>
       <path d="M244 330 L182 350 L148 372"/>
       <path d="M244 330 L300 400 L352 438"/>
     </g>
-    <circle cx="276" cy="140" r="50" fill="#fff"/>
+    <circle cx="276" cy="140" r="50" fill="#2b2100"/>
   </g>
 </svg>

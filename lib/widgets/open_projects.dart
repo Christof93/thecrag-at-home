@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/ascent.dart';
 import '../models/stats.dart';
+import '../models/grades.dart';
+import 'grade_badge.dart';
 import 'year_chart.dart' show kindColor;
 
 enum ProjectSort { recent, hardest }
@@ -86,6 +88,8 @@ class _OpenProjectsViewState extends State<OpenProjectsView> {
               color: scheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 12),
+          const RarityLegend(),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -245,9 +249,17 @@ class _ProjectCard extends StatelessWidget {
     final small = theme.textTheme.bodySmall!.copyWith(
       color: scheme.onSurfaceVariant,
     );
+    final tier = p.rarity;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       clipBehavior: Clip.antiAlias,
+      // The outline carries the grade tier.
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: tier == null
+            ? BorderSide.none
+            : BorderSide(color: rarityColor(tier, theme.brightness), width: 2),
+      ),
       child: InkWell(
         onTap: p.url == null ? null : () => launchUrl(Uri.parse(p.url!)),
         child: Padding(
@@ -256,7 +268,7 @@ class _ProjectCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: 64,
+                width: 84,
                 child: Row(
                   children: [
                     CircleAvatar(
@@ -264,11 +276,13 @@ class _ProjectCard extends StatelessWidget {
                       backgroundColor: kindColor(p.kind, theme.brightness),
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        p.grade ?? '–',
-                        style: theme.textTheme.titleSmall,
-                        overflow: TextOverflow.ellipsis,
+                    Flexible(
+                      child: GradeBadge(
+                        grade: p.grade,
+                        rarity: tier,
+                        discipline: p.kind == ClimbKind.boulder
+                            ? Discipline.boulder
+                            : Discipline.route,
                       ),
                     ),
                   ],

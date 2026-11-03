@@ -13,6 +13,23 @@ A personal climbing dashboard built with Flutter, fed by your
 * **Days out per year**: grouped columns of how many days you climbed sport,
   boulders and trad each year. Tap a year to select it.
 * **Most visited crags**: ranked by days out in the selected period.
+* **Grade tiers**: grades are badged like item rarities in games (common
+  grey, uncommon green, rare blue, epic purple, legendary orange) and the
+  cards on the Open projects tab are outlined in their tier colour. The
+  ranges (change them in `lib/models/rarity.dart`):
+
+  | Tier | Sport / trad | Boulder |
+  | --- | --- | --- |
+  | Common | up to 4c | up to 5+ |
+  | Uncommon | 5a – 5c+ | 6A – 6C |
+  | Rare | 6a – 6c+ | 6C+ – 7B+ |
+  | Epic | 7a – 7c+ | 7C – 8B |
+  | Legendary | 8a and up | 8B+ and up |
+
+  Other grading systems (YDS, UIAA, Ewbank, V-scale) are placed by their
+  French or Font equivalent.
+* **Look**: mustard yellow (`#FFDB58`) on a cream surface, or as the accent
+  on a warm dark surface; see `buildTheme` in `lib/main.dart`.
 * **Layout**: one column on most screens; from 1700 px wide the charts and
   calendar stack on the left and the map fills the right.
 * **Open projects** (second tab): routes you tried but never sent, in a column
