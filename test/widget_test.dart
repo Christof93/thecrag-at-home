@@ -45,6 +45,7 @@ class _FakeRepo extends AscentRepository {
 
 void main() {
   layoutTests();
+  projectColumnTests();
   projectsTests();
   testWidgets('dashboard shows stats and grid', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 1600));
@@ -124,6 +125,37 @@ void layoutTests() {
   });
 }
 
+void projectColumnTests() {
+  Future<void> openTab(WidgetTester tester, Size size) async {
+    await tester.binding.setSurfaceSize(size);
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(repository: _ProjectsRepo())),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Open projects (1)'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('wide screens show the stages side by side', (tester) async {
+    await openTab(tester, const Size(1400, 1000));
+    final dog = tester.getTopLeft(find.text('Hang dog'));
+    final projected = tester.getTopLeft(find.text('Projected'));
+    final tried = tester.getTopLeft(find.text('Try'));
+    expect(projected.dx, greaterThan(dog.dx));
+    expect(tried.dx, greaterThan(projected.dx));
+    expect(projected.dy, dog.dy);
+  });
+
+  testWidgets('narrow screens stack the stages', (tester) async {
+    await openTab(tester, const Size(600, 1600));
+    final dog = tester.getTopLeft(find.text('Hang dog'));
+    final projected = tester.getTopLeft(find.text('Projected'));
+    expect(projected.dy, greaterThan(dog.dy));
+    expect(projected.dx, dog.dx);
+  });
+}
+
 void projectsTests() {
   testWidgets('open projects tab lists routes that were never sent', (
     tester,
@@ -143,6 +175,10 @@ void projectsTests() {
     expect(find.text('Sent route'), findsNothing);
     expect(find.text('7c'), findsOneWidget);
     expect(find.text('1 open project'), findsOneWidget);
-    expect(find.textContaining('hang dog'), findsOneWidget);
+    // Hang dog column holds it; the other two stages are empty.
+    expect(find.text('Hang dog'), findsOneWidget);
+    expect(find.text('Projected'), findsOneWidget);
+    expect(find.text('Try'), findsOneWidget);
+    expect(find.text('Nothing here.'), findsNWidgets(2));
   });
 }

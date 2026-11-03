@@ -36,6 +36,31 @@ List<YearKindDays> daysPerYearByKind(Iterable<Ascent> ascents) {
   ];
 }
 
+/// How far you got on a route you have not sent, from furthest to least.
+enum ProjectStage {
+  /// Every move climbed, with rests on the rope.
+  hangDog('Hang dog', 'All moves climbed, with rests'),
+
+  /// Worked on it (theCrag's "working", or a planned target).
+  projected('Projected', 'Working on it'),
+
+  /// Tried, but not worked yet: attempts, retreats and the like.
+  tried('Try', 'Tried, not worked yet');
+
+  const ProjectStage(this.label, this.description);
+
+  final String label;
+  final String description;
+
+  /// The stage a single ascent's tick stands for.
+  static ProjectStage fromStyle(String? style) =>
+      switch (style?.toLowerCase().trim()) {
+        'dog' || 'hang dog' || 'hangdog' => hangDog,
+        'working' || 'project' || 'projected' || 'target' => projected,
+        _ => tried,
+      };
+}
+
 /// A route you have tried but never sent: every logged ascent of it is a
 /// hang dog, working, attempt, retreat or similar.
 class OpenProject {
@@ -55,6 +80,12 @@ class OpenProject {
   String? get url => last.url ?? first.url;
   DateTime get firstTried => first.date;
   DateTime get lastTried => last.date;
+
+  /// The furthest stage reached on any ascent of the route: a route that was
+  /// attempted and later hang dogged is a hang dog project.
+  ProjectStage get stage => ascents
+      .map((a) => ProjectStage.fromStyle(a.style))
+      .reduce((a, b) => a.index <= b.index ? a : b);
 
   /// How the route was last tried, e.g. `dog` or `working`.
   String? get lastStyle => last.style;
