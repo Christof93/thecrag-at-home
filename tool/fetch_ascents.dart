@@ -281,7 +281,7 @@ Future<({List<Ascent> ascents, String? climber})> syncLogbook(
 /// Layout version of the cache file. Raise it whenever the normalised ascents
 /// gain fields, so an older cache is rebuilt with a full download instead of
 /// being kept (and merged into) until the weekly refresh.
-const cacheVersion = 3;
+const cacheVersion = 4;
 
 /// Normalised ascents plus the state needed for incremental syncs.
 class SyncCache {
@@ -391,6 +391,7 @@ Ascent? parseLogbookAscent(Map<String, dynamic> m, String baseUrl) {
     url: url,
     discipline: discipline,
     kind: kind,
+    routeId: routeId,
     pitches: m['pitch'] is List && (m['pitch'] as List).isNotEmpty
         ? (m['pitch'] as List).length
         : null,

@@ -36,6 +36,56 @@ List<YearKindDays> daysPerYearByKind(Iterable<Ascent> ascents) {
   ];
 }
 
+/// A route you have tried but never sent: every logged ascent of it is a
+/// hang dog, working, attempt, retreat or similar.
+class OpenProject {
+  OpenProject(this.ascents);
+
+  /// All logged ascents of the route, oldest first.
+  final List<Ascent> ascents;
+
+  Ascent get first => ascents.first;
+  Ascent get last => ascents.last;
+
+  String get route => first.route;
+  String? get grade => last.grade ?? first.grade;
+  String? get crag => first.crag ?? first.area;
+  String? get country => first.country;
+  ClimbKind get kind => first.climbKind;
+  String? get url => last.url ?? first.url;
+  DateTime get firstTried => first.date;
+  DateTime get lastTried => last.date;
+
+  /// How the route was last tried, e.g. `dog` or `working`.
+  String? get lastStyle => last.style;
+
+  /// Distinct days spent on it.
+  int get sessions => {for (final a in ascents) dayKey(a.date)}.length;
+
+  double? get gradeScore => last.parsedGrade?.score ?? first.parsedGrade?.score;
+}
+
+/// Routes tried but not sent, most recently tried first. Whether a route was
+/// sent is judged over all ascents of it, whatever the period on screen.
+List<OpenProject> openProjects(Iterable<Ascent> ascents) {
+  final byRoute = <String, List<Ascent>>{};
+  for (final a in ascents) {
+    // Ascents of one route share an id; without ids fall back to name+crag.
+    final key = a.routeId ?? '${a.route}\u0000${a.crag ?? a.area ?? ''}';
+    byRoute.putIfAbsent(key, () => []).add(a);
+  }
+  final result = [
+    for (final list in byRoute.values)
+      if (list.every((a) => !a.isSend))
+        OpenProject(list..sort((a, b) => a.date.compareTo(b.date))),
+  ];
+  result.sort((a, b) {
+    final byDate = b.lastTried.compareTo(a.lastTried);
+    return byDate != 0 ? byDate : a.route.compareTo(b.route);
+  });
+  return result;
+}
+
 /// Ascents with two or more logged pitches, and those pitches.
 class MultipitchSummary {
   const MultipitchSummary(this.ascents, this.pitches);

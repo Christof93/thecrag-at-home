@@ -95,6 +95,87 @@ void main() {
     expect(multipitchSummary(const []).ascents, 0);
   });
 
+  group('openProjects', () {
+    Ascent t(
+      String date,
+      String route,
+      String style, {
+      String? id,
+      String? crag,
+      String? grade,
+    }) => Ascent(
+      id: '$route$date',
+      date: DateTime.parse(date),
+      route: route,
+      style: style,
+      routeId: id,
+      crag: crag,
+      grade: grade,
+    );
+
+    test('lists routes that were never sent, most recently tried first', () {
+      final p = openProjects([
+        t('2024-05-01', 'Old project', 'dog', id: '1', grade: '7a'),
+        t('2025-06-01', 'Sent later', 'working', id: '2'),
+        t('2025-07-01', 'Sent later', 'redpoint', id: '2'),
+        t('2025-08-01', 'New project', 'attempt', id: '3', grade: '7b'),
+        t('2025-08-01', 'Plain tick', 'tick', id: '4'),
+        t('2025-09-01', 'Old project', 'working', id: '1'),
+        t('2025-09-01', 'Latest try', 'try', id: '5'),
+      ]);
+      expect(p.map((x) => x.route), [
+        'Latest try',
+        'Old project',
+        'New project',
+      ]);
+      final old = p[1];
+      expect(old.sessions, 2);
+      expect(old.firstTried, DateTime(2024, 5, 1));
+      expect(old.lastTried, DateTime(2025, 9, 1));
+      expect(old.lastStyle, 'working');
+      expect(old.grade, '7a');
+    });
+
+    test('a send of the route anywhere counts, whatever its date', () {
+      expect(
+        openProjects([
+          t('2020-01-01', 'A', 'redpoint', id: '1'),
+          t('2024-01-01', 'A', 'dog', id: '1'), // later dog after a send
+        ]),
+        isEmpty,
+      );
+    });
+
+    test('similar routes with other ids stay separate', () {
+      final p = openProjects([
+        t('2024-01-01', 'Same name', 'dog', id: '1'),
+        t('2024-01-02', 'Same name', 'redpoint', id: '2'),
+      ]);
+      expect(p.map((x) => x.route), ['Same name']);
+    });
+
+    test('without route ids, name and crag identify a route', () {
+      final p = openProjects([
+        t('2024-01-01', 'X', 'dog', crag: 'A'),
+        t('2024-01-02', 'X', 'redpoint', crag: 'B'), // another X, sent
+        t('2024-01-03', 'X', 'try', crag: 'A'),
+      ]);
+      expect(p, hasLength(1));
+      expect(p.single.crag, 'A');
+      expect(p.single.sessions, 2);
+    });
+
+    test('also knows try and projected', () {
+      expect(
+        openProjects([
+          t('2024-01-01', 'A', 'try', id: '1'),
+          t('2024-01-01', 'B', 'projected', id: '2'),
+        ]),
+        hasLength(2),
+      );
+    });
+  });
+
   test('niceStep gives about four gridlines', () {
     expect(DaysPerYearChart.niceStep(1), 1);
     expect(DaysPerYearChart.niceStep(18), 5);

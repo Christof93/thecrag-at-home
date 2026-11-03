@@ -43,6 +43,7 @@ class _FakeRepo extends AscentRepository {
 }
 
 void main() {
+  projectsTests();
   testWidgets('dashboard shows stats and grid', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 1600));
     await tester.pumpWidget(
@@ -61,5 +62,55 @@ void main() {
     expect(find.text('Most visited crags'), findsOneWidget);
     expect(find.text('Crag A'), findsOneWidget);
     expect(find.text('1 day'), findsOneWidget); // two ascents, one day
+  });
+}
+
+class _ProjectsRepo extends AscentRepository {
+  @override
+  Future<AscentDataset> load() async => AscentDataset(
+    climber: 'Tester',
+    ascents: [
+      Ascent(
+        id: '1',
+        date: DateTime(2025, 5, 1),
+        route: 'Sent route',
+        grade: '6b',
+        style: 'redpoint',
+        routeId: 'r1',
+      ),
+      Ascent(
+        id: '2',
+        date: DateTime(2025, 6, 1),
+        route: 'Hard project',
+        grade: '7c',
+        style: 'dog',
+        crag: 'Crag B',
+        country: 'Italy',
+        routeId: 'r2',
+      ),
+    ],
+  );
+}
+
+void projectsTests() {
+  testWidgets('open projects tab lists routes that were never sent', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 1600));
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(repository: _ProjectsRepo())),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Open projects (1)'), findsOneWidget);
+    expect(find.text('Hard project'), findsNothing); // on the other tab
+
+    await tester.tap(find.text('Open projects (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hard project'), findsOneWidget);
+    expect(find.text('Sent route'), findsNothing);
+    expect(find.text('7c'), findsOneWidget);
+    expect(find.text('1 open project'), findsOneWidget);
+    expect(find.textContaining('hang dog'), findsOneWidget);
   });
 }

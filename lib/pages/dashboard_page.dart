@@ -8,6 +8,7 @@ import '../models/grades.dart';
 import '../models/stats.dart';
 import '../widgets/ascent_map.dart';
 import '../widgets/contribution_grid.dart';
+import '../widgets/open_projects.dart';
 import '../widgets/top_crags.dart';
 import '../widgets/year_chart.dart';
 
@@ -94,106 +95,125 @@ class _DashboardPageState extends State<DashboardPage> {
     final years = {for (final a in all) a.date.year}.toList()
       ..sort((a, b) => b.compareTo(a));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          data.climber == null
-              ? 'theCrag at home'
-              : '${data.climber} · ascents',
-        ),
-        actions: [
-          if (data.generated != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(
-                child: Text(
-                  'Updated ${DateFormat.yMMMd().format(data.generated!.toLocal())}',
-                  style: theme.textTheme.labelSmall,
+    final projects = openProjects(all);
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            data.climber == null
+                ? 'theCrag at home'
+                : '${data.climber} · ascents',
+          ),
+          actions: [
+            if (data.generated != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(
+                  child: Text(
+                    'Updated ${DateFormat.yMMMd().format(data.generated!.toLocal())}',
+                    style: theme.textTheme.labelSmall,
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          if (data.demo)
-            Card(
-              color: theme.colorScheme.tertiaryContainer,
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Showing generated demo data. Run '
-                  '`dart run tool/fetch_ascents.dart` with your theCrag API '
-                  'key (or let the GitHub Actions workflow do it) to see '
-                  'your own ascents.',
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _chip('Last 12 months', const LastYear()),
-              for (final y in years) _chip('$y', CalendarYear(y)),
-              _chip('All time', const AllTime()),
+          ],
+          bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [
+              const Tab(text: 'Overview'),
+              Tab(text: 'Open projects (${projects.length})'),
             ],
           ),
-          const SizedBox(height: 16),
-          _Stats(days: days),
-          const SizedBox(height: 16),
-          _insights(theme, all, inRange),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${inRange.length} ascents on ${days.length} days',
-                          style: theme.textTheme.titleMedium,
+        ),
+        // No swiping between tabs: the map and charts pan horizontally.
+        body: TabBarView(
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              children: [
+                if (data.demo)
+                  Card(
+                    color: theme.colorScheme.tertiaryContainer,
+                    child: const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        'Showing generated demo data. Run '
+                        '`dart run tool/fetch_ascents.dart` with your theCrag API '
+                        'key (or let the GitHub Actions workflow do it) to see '
+                        'your own ascents.',
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _chip('Last 12 months', const LastYear()),
+                    for (final y in years) _chip('$y', CalendarYear(y)),
+                    _chip('All time', const AllTime()),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _Stats(days: days),
+                const SizedBox(height: 16),
+                _insights(theme, all, inRange),
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${inRange.length} ascents on ${days.length} days',
+                                style: theme.textTheme.titleMedium,
+                              ),
+                            ),
+                            SegmentedButton<GridColorMode>(
+                              showSelectedIcon: false,
+                              segments: const [
+                                ButtonSegment(
+                                  value: GridColorMode.count,
+                                  label: Text('Count'),
+                                ),
+                                ButtonSegment(
+                                  value: GridColorMode.grade,
+                                  label: Text('Grade'),
+                                ),
+                              ],
+                              selected: {_colorMode},
+                              onSelectionChanged: (s) =>
+                                  setState(() => _colorMode = s.first),
+                            ),
+                          ],
                         ),
-                      ),
-                      SegmentedButton<GridColorMode>(
-                        showSelectedIcon: false,
-                        segments: const [
-                          ButtonSegment(
-                            value: GridColorMode.count,
-                            label: Text('Count'),
-                          ),
-                          ButtonSegment(
-                            value: GridColorMode.grade,
-                            label: Text('Grade'),
-                          ),
-                        ],
-                        selected: {_colorMode},
-                        onSelectionChanged: (s) =>
-                            setState(() => _colorMode = s.first),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        ..._grids(days, start, end),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: GridLegend(colorMode: _colorMode),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  ..._grids(days, start, end),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: GridLegend(colorMode: _colorMode),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: SizedBox(height: 480, child: AscentMap(days: days)),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: SizedBox(height: 480, child: AscentMap(days: days)),
-          ),
-        ],
+            OpenProjectsView(projects: projects),
+          ],
+        ),
       ),
     );
   }
