@@ -2,6 +2,7 @@
 library;
 
 import 'ascent.dart';
+import 'rarity.dart';
 
 /// Number of days out in one calendar year, per kind of climbing.
 ///
@@ -94,6 +95,9 @@ class OpenProject {
   int get sessions => {for (final a in ascents) dayKey(a.date)}.length;
 
   double? get gradeScore => last.parsedGrade?.score ?? first.parsedGrade?.score;
+
+  /// Grade tier of the route.
+  Rarity? get rarity => last.grade != null ? last.rarity : first.rarity;
 }
 
 /// Routes tried but not sent, most recently tried first. Whether a route was

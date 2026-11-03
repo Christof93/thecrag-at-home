@@ -33,8 +33,20 @@ class Grades {
     '8C', '8C+', '9A',
   ];
 
-  static int _f(String g) => french.indexOf(g);
   static int _fb(String g) => font.indexOf(g);
+
+  /// Position of a French grade on the scale. [french] lacks the plus grades
+  /// below 6a (4a+ ... 5c+) that theCrag uses, so those sit half a step above
+  /// their base grade instead of falling through to UIAA ("5c+" is not "5").
+  static double? _frIndex(String g) {
+    final i = french.indexOf(g);
+    if (i >= 0) return i.toDouble();
+    if (g.endsWith('+')) {
+      final base = french.indexOf(g.substring(0, g.length - 1));
+      if (base >= 0) return base + 0.5;
+    }
+    return null;
+  }
 
   // YDS 5.x -> French index.
   static final Map<String, double> _yds = {
@@ -223,8 +235,8 @@ class Grades {
     // French: 6a, 6a+, 7b/+, 5c
     final fr = RegExp(r'^[Ff]?([1-9][abc]?\+?)').firstMatch(g);
     if (fr != null && RegExp(r'[abc]').hasMatch(fr.group(1)!)) {
-      final i = _f(fr.group(1)!);
-      if (i >= 0) return ParsedGrade(input, i.toDouble(), Discipline.route);
+      final i = _frIndex(fr.group(1)!);
+      if (i != null) return ParsedGrade(input, i, Discipline.route);
     }
 
     // UIAA roman: VI+, VII-, IX

@@ -5,6 +5,7 @@
 library;
 
 import 'grades.dart';
+import 'rarity.dart';
 
 /// Broad kind of climbing, used to split days out into categories.
 enum ClimbKind {
@@ -91,6 +92,14 @@ class Ascent {
   bool get isSend => !nonSendStyles.contains(style?.toLowerCase().trim());
 
   ParsedGrade? get parsedGrade => Grades.parse(grade, discipline: discipline);
+
+  /// Grade tier (common ... legendary), judged on the boulder or route scale.
+  Rarity? get rarity => Rarity.of(
+    grade,
+    discipline: climbKind == ClimbKind.boulder
+        ? Discipline.boulder
+        : Discipline.route,
+  );
 
   static const nonSendStyles = {
     'attempt',

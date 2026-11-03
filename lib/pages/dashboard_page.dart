@@ -8,6 +8,7 @@ import '../models/grades.dart';
 import '../models/stats.dart';
 import '../widgets/ascent_map.dart';
 import '../widgets/contribution_grid.dart';
+import '../widgets/grade_badge.dart';
 import '../widgets/open_projects.dart';
 import '../widgets/top_crags.dart';
 import '../widgets/year_chart.dart';
@@ -386,10 +387,16 @@ class _DashboardPageState extends State<DashboardPage> {
             ListTile(
               dense: true,
               leading: SizedBox(
-                width: 48,
-                child: Text(
-                  a.grade ?? '–',
-                  style: Theme.of(context).textTheme.titleSmall,
+                width: 72,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: GradeBadge(
+                    grade: a.grade,
+                    rarity: a.rarity,
+                    discipline: a.climbKind == ClimbKind.boulder
+                        ? Discipline.boulder
+                        : Discipline.route,
+                  ),
                 ),
               ),
               title: Text(a.route),
