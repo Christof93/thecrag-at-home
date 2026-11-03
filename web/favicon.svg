@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#FFDB58"/>
+  <rect width="512" height="512" rx="112" fill="#E3CC94"/>
   <!-- the wall: a darker slab leaning to the right -->
-  <path d="M512 150 L512 400 Q512 512 400 512 L150 512 Z" fill="#F2BE2C"/>
+  <path d="M512 150 L512 400 Q512 512 400 512 L150 512 Z" fill="#CDB070"/>
   <!-- holds -->
   <g fill="#ffffff">
     <circle cx="158" cy="92" r="40"/>
@@ -10,12 +10,12 @@
     <circle cx="352" cy="438" r="36"/>
   </g>
   <!-- climber, reaching up and left -->
-  <g fill="none" stroke="#2b2100" stroke-width="58" stroke-linecap="round" stroke-linejoin="round">
+  <g fill="none" stroke="#33290f" stroke-width="58" stroke-linecap="round" stroke-linejoin="round">
     <path d="M258 214 L244 330"/>
     <path d="M258 214 L206 160 L158 92"/>
     <path d="M258 214 L330 214 L376 178"/>
     <path d="M244 330 L182 350 L148 372"/>
     <path d="M244 330 L300 400 L352 438"/>
   </g>
-  <circle cx="276" cy="140" r="50" fill="#2b2100"/>
+  <circle cx="276" cy="140" r="50" fill="#33290f"/>
 </svg>

@@ -7,42 +7,44 @@ Rarity? route(String g) => Rarity.of(g);
 Rarity? boulder(String g) => Rarity.of(g, discipline: Discipline.boulder);
 
 void main() {
-  test('route tiers follow the leading number', () {
+  test('route tiers: up to 5c+, 6a-6c, 6c+-7b+, 7c-8b, 8b+', () {
     expect(route('3'), Rarity.common);
     expect(route('4c'), Rarity.common);
-    expect(route('5a'), Rarity.uncommon);
-    expect(route('5c'), Rarity.uncommon);
-    expect(route('5c+'), Rarity.uncommon);
-    expect(route('6a'), Rarity.rare);
+    expect(route('5a'), Rarity.common);
+    expect(route('5c+'), Rarity.common);
+    expect(route('6a'), Rarity.uncommon);
+    expect(route('6c'), Rarity.uncommon);
     expect(route('6c+'), Rarity.rare);
-    expect(route('7a'), Rarity.epic);
-    expect(route('7c+'), Rarity.epic);
-    expect(route('8a'), Rarity.legendary);
+    expect(route('7a'), Rarity.rare);
+    expect(route('7b+'), Rarity.rare);
+    expect(route('7c'), Rarity.epic);
+    expect(route('8b'), Rarity.epic);
+    expect(route('8b+'), Rarity.legendary);
     expect(route('9b'), Rarity.legendary);
   });
 
-  test('boulder tiers', () {
+  test('boulder tiers go by leading number: up to 4+, 5s, 6s, 7s, 8A+', () {
+    expect(boulder('3'), Rarity.common);
     expect(boulder('4'), Rarity.common);
-    expect(boulder('5+'), Rarity.common);
-    expect(boulder('6A'), Rarity.uncommon);
-    expect(boulder('6C'), Rarity.uncommon);
+    expect(boulder('4+'), Rarity.common);
+    expect(boulder('5'), Rarity.uncommon);
+    expect(boulder('5+'), Rarity.uncommon);
+    expect(boulder('6A'), Rarity.rare);
     expect(boulder('6C+'), Rarity.rare);
-    expect(boulder('7A'), Rarity.rare);
-    expect(boulder('7B+'), Rarity.rare);
-    expect(boulder('7C'), Rarity.epic);
-    expect(boulder('8B'), Rarity.epic);
-    expect(boulder('8B+'), Rarity.legendary);
+    expect(boulder('7A'), Rarity.epic);
+    expect(boulder('7C+'), Rarity.epic);
+    expect(boulder('8A'), Rarity.legendary);
     expect(boulder('9A'), Rarity.legendary);
   });
 
   test('the same grade differs between routes and boulders', () {
-    expect(route('7a'), Rarity.epic);
-    expect(boulder('7A'), Rarity.rare);
-    expect(boulder('6a'), Rarity.uncommon); // lowercase on a boulder is Font
+    expect(route('7a'), Rarity.rare);
+    expect(boulder('7A'), Rarity.epic);
+    expect(boulder('6a'), Rarity.rare); // lowercase on a boulder is Font
   });
 
   test('other grade systems are placed by their French equivalent', () {
-    expect(route('5.12a'), Rarity.epic); // YDS ~ 7a+
+    expect(route('5.12a'), Rarity.rare); // YDS ~ 7a+
     expect(route('V4'), isNull); // a boulder grade on a route has no tier
   });
 
@@ -53,8 +55,8 @@ void main() {
   });
 
   test('ranges are listed for both disciplines', () {
-    expect(Rarity.epic.range(Discipline.route), '7a – 7c+');
-    expect(Rarity.epic.range(Discipline.boulder), '7C – 8B');
+    expect(Rarity.epic.range(Discipline.route), '7c – 8b');
+    expect(Rarity.epic.range(Discipline.boulder), '7A – 7C+');
     for (final r in Rarity.values) {
       expect(r.range(Discipline.route), isNotEmpty);
       expect(r.range(Discipline.boulder), isNotEmpty);
@@ -69,9 +71,9 @@ void main() {
       grade: grade,
       kind: kind,
     );
-    expect(a('7A', ClimbKind.boulder).rarity, Rarity.rare);
-    expect(a('7a', ClimbKind.sport).rarity, Rarity.epic);
-    expect(a('6a', ClimbKind.trad).rarity, Rarity.rare);
+    expect(a('7A', ClimbKind.boulder).rarity, Rarity.epic);
+    expect(a('7a', ClimbKind.sport).rarity, Rarity.rare);
+    expect(a('6a', ClimbKind.trad).rarity, Rarity.uncommon);
     expect(Ascent(id: 'x', date: DateTime(2024), route: 'x').rarity, isNull);
   });
 }

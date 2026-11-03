@@ -205,12 +205,12 @@ void projectsTests() {
       rarityColor(Rarity.epic, Brightness.light),
     );
     expect(find.byType(GradeBadge), findsOneWidget);
-    expect(find.byTooltip('Epic: 7a – 7c+'), findsOneWidget);
+    expect(find.byTooltip('Epic: 7c – 8b'), findsOneWidget);
     // The legend names all five tiers with both grade ranges.
     expect(find.text('Grade tiers'), findsOneWidget);
     for (final r in Rarity.values) {
       expect(find.text(r.label), findsOneWidget);
     }
-    expect(find.byTooltip('Sport: 7a – 7c+\nBoulder: 7C – 8B'), findsOneWidget);
+    expect(find.byTooltip('Sport: 7c – 8b\nBoulder: 7A – 7C+'), findsOneWidget);
   });
 }

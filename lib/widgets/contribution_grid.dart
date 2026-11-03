@@ -182,19 +182,19 @@ class ContributionGrid extends StatelessWidget {
     );
   }
 
-  // Mustard ramps, more intense = stronger. On a light surface the strongest
+  // Sand ramps, more intense = stronger. On a light surface the strongest
   // level is the darkest; on a dark surface it is the brightest.
   static const _lightLevels = [
-    Color(0xFFFFE680),
-    Color(0xFFFFDB58),
-    Color(0xFFD9A800),
-    Color(0xFF8A6A00),
+    Color(0xFFEAD9AB),
+    Color(0xFFDBC183),
+    Color(0xFFB8924A),
+    Color(0xFF6E5226),
   ];
   static const _darkLevels = [
-    Color(0xFF4F4414),
-    Color(0xFF8C7420),
-    Color(0xFFD1AE2F),
-    Color(0xFFFFDB58),
+    Color(0xFF4A4230),
+    Color(0xFF7A6A45),
+    Color(0xFFB39B62),
+    Color(0xFFE3CC94),
   ];
 
   /// Colour for intensity t in [0, 1] using 4 discrete levels like GitHub.
