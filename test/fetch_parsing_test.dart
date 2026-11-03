@@ -120,6 +120,7 @@ void main() {
     expect((a.lat, a.lon), (47.125524, 9.122874)); // sector, [lon, lat]
     expect(a.discipline, Discipline.route);
     expect(a.kind, ClimbKind.sport);
+    expect(a.routeId, '414461610');
     expect(
       a.url,
       'https://www.thecrag.com/climbing/switzerland/alpen/glarner-alpen'

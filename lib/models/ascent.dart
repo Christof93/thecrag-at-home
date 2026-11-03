@@ -39,6 +39,7 @@ class Ascent {
     this.discipline,
     this.kind,
     this.pitches,
+    this.routeId,
   });
 
   final String id;
@@ -69,6 +70,10 @@ class Ascent {
   /// you logged, so a route with 9 pitches of which you logged 5 gives 5.
   final int? pitches;
 
+  /// theCrag's id of the route, to tell ascents of the same route apart from
+  /// other routes with the same name (absent in demo and CSV data).
+  final String? routeId;
+
   /// Two or more pitches were logged.
   bool get isMultipitch => (pitches ?? 0) >= 2;
 
@@ -98,6 +103,10 @@ class Ascent {
     'dog',
     'dnf',
     'ghost',
+    'try',
+    'tried',
+    'project',
+    'projected',
   };
 
   factory Ascent.fromJson(Map<String, dynamic> j) => Ascent(
@@ -119,6 +128,7 @@ class Ascent {
     },
     kind: ClimbKind.parse(j['kind']),
     pitches: (j['pitches'] as num?)?.toInt(),
+    routeId: j['routeId'] as String?,
   );
 
   Map<String, dynamic> toJson() => {
@@ -136,6 +146,7 @@ class Ascent {
     if (discipline != null) 'discipline': discipline!.name,
     if (kind != null) 'kind': kind!.name,
     if (pitches != null) 'pitches': pitches,
+    if (routeId != null) 'routeId': routeId,
   };
 }
 
