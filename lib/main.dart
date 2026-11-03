@@ -19,35 +19,33 @@ class TheCragAtHomeApp extends StatelessWidget {
   }
 }
 
-/// Mustard yellow, the app's accent.
-const mustard = Color(0xFFFFDB58);
+/// Sand, the app's accent: a muted yellow-brown.
+const sand = Color(0xFFE3CC94);
 
-/// The light theme has a cream surface and a mustard app bar, with a darker
-/// gold where yellow itself would be too pale to read (text, bars, the
-/// calendar). The dark theme uses mustard as its accent on a warm dark
-/// surface.
+/// The light theme has a cream surface and a sand app bar, with a darker
+/// brown-gold where sand itself would be too pale to read (text, bars, the
+/// strongest calendar level). The dark theme uses sand as its accent on a
+/// warm dark surface.
 ThemeData buildTheme(Brightness brightness) {
   final light = brightness == Brightness.light;
   var scheme = ColorScheme.fromSeed(
-    seedColor: mustard,
+    seedColor: sand,
     brightness: brightness,
-    // "Fidelity" keeps the seed itself as the container colour (#FFDB58).
+    // "Fidelity" keeps the seed itself as the container colour (#E3CC94).
     dynamicSchemeVariant: light
         ? DynamicSchemeVariant.fidelity
         : DynamicSchemeVariant.tonalSpot,
   );
   if (!light) {
-    scheme = scheme.copyWith(
-      primary: mustard,
-      onPrimary: const Color(0xFF3B2F00),
-    );
+    scheme = scheme.copyWith(primary: sand, onPrimary: const Color(0xFF33290F));
   }
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
     appBarTheme: AppBarTheme(
       backgroundColor: light ? scheme.primaryContainer : null,
-      foregroundColor: light ? scheme.onPrimaryContainer : null,
+      // Deep brown: sand is too light for the default on-container colour.
+      foregroundColor: light ? const Color(0xFF33290F) : null,
       surfaceTintColor: Colors.transparent,
     ),
   );

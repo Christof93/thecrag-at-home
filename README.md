@@ -28,8 +28,8 @@ A personal climbing dashboard built with Flutter, fed by your
 
   Other grading systems (YDS, UIAA, Ewbank, V-scale) are placed by their
   French or Font equivalent.
-* **Look**: mustard yellow (`#FFDB58`) on a cream surface, or as the accent
-  on a warm dark surface; see `buildTheme` in `lib/main.dart`.
+* **Look**: sand (`#E3CC94`) on a cream surface, or as the accent on a warm
+  dark surface; see `buildTheme` in `lib/main.dart`.
 * **Layout**: one column on most screens; from 1700 px wide the charts and
   calendar stack on the left and the map fills the right.
 * **Open projects** (second tab): routes you tried but never sent, in a column
