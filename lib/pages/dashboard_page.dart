@@ -159,56 +159,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 16),
                 _Stats(days: days),
                 const SizedBox(height: 16),
-                _insights(theme, all, inRange),
-                const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${inRange.length} ascents on ${days.length} days',
-                                style: theme.textTheme.titleMedium,
-                              ),
-                            ),
-                            SegmentedButton<GridColorMode>(
-                              showSelectedIcon: false,
-                              segments: const [
-                                ButtonSegment(
-                                  value: GridColorMode.count,
-                                  label: Text('Count'),
-                                ),
-                                ButtonSegment(
-                                  value: GridColorMode.grade,
-                                  label: Text('Grade'),
-                                ),
-                              ],
-                              selected: {_colorMode},
-                              onSelectionChanged: (s) =>
-                                  setState(() => _colorMode = s.first),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ..._grids(days, start, end),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: GridLegend(colorMode: _colorMode),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: SizedBox(height: 480, child: AscentMap(days: days)),
-                ),
+                _sections(theme, all, inRange, days, start, end),
               ],
             ),
             OpenProjectsView(projects: projects),
@@ -217,6 +168,111 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
+
+  /// Width from which the overview uses two columns, so very wide screens
+  /// are not one long, mostly empty column.
+  static const _wideBreakpoint = 1700.0;
+
+  /// The charts, the calendar and the map. One column on most screens; on
+  /// very wide ones the charts and calendar stack on the left and the map
+  /// takes the right.
+  Widget _sections(
+    ThemeData theme,
+    List<Ascent> all,
+    List<Ascent> inRange,
+    List<ClimbingDay> days,
+    DateTime start,
+    DateTime end,
+  ) {
+    Widget map(double height) => Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: height,
+        child: AscentMap(days: days),
+      ),
+    );
+    final insights = _insights(theme, all, inRange);
+    final calendar = _calendarCard(theme, inRange, days, start, end);
+    return LayoutBuilder(
+      builder: (context, c) {
+        if (c.maxWidth < _wideBreakpoint) {
+          return Column(
+            children: [
+              insights,
+              const SizedBox(height: 16),
+              calendar,
+              const SizedBox(height: 16),
+              map(480),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 58,
+              child: Column(
+                children: [insights, const SizedBox(height: 16), calendar],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(flex: 42, child: map(680)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _calendarCard(
+    ThemeData theme,
+    List<Ascent> inRange,
+    List<ClimbingDay> days,
+    DateTime start,
+    DateTime end,
+  ) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${inRange.length} ascents on ${days.length} days',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              SegmentedButton<GridColorMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: GridColorMode.count,
+                    label: Text('Count'),
+                  ),
+                  ButtonSegment(
+                    value: GridColorMode.grade,
+                    label: Text('Grade'),
+                  ),
+                ],
+                selected: {_colorMode},
+                onSelectionChanged: (s) => setState(() => _colorMode = s.first),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ..._grids(days, start, end),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: GridLegend(colorMode: _colorMode),
+          ),
+        ],
+      ),
+    ),
+  );
 
   /// Days per year by kind of climbing (always every year, whatever the
   /// period) next to the most visited crags of the selected period.

@@ -165,6 +165,24 @@ void main() {
       expect(p.single.sessions, 2);
     });
 
+    test('stage is the furthest reached on any ascent', () {
+      ProjectStage stage(List<String> styles) => openProjects([
+        for (var i = 0; i < styles.length; i++)
+          t('2024-01-0${i + 1}', 'R', styles[i], id: '1'),
+      ]).single.stage;
+      expect(stage(['dog']), ProjectStage.hangDog);
+      expect(stage(['hang dog']), ProjectStage.hangDog);
+      expect(stage(['working']), ProjectStage.projected);
+      expect(stage(['projected']), ProjectStage.projected);
+      expect(stage(['attempt']), ProjectStage.tried);
+      expect(stage(['retreat']), ProjectStage.tried);
+      expect(stage(['try']), ProjectStage.tried);
+      // Several tries, then it was worked, then hang dogged.
+      expect(stage(['attempt', 'working']), ProjectStage.projected);
+      expect(stage(['attempt', 'working', 'dog']), ProjectStage.hangDog);
+      expect(stage(['dog', 'attempt']), ProjectStage.hangDog);
+    });
+
     test('also knows try and projected', () {
       expect(
         openProjects([

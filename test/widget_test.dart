@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thecrag_at_home/data/ascent_repository.dart';
 import 'package:thecrag_at_home/models/ascent.dart';
 import 'package:thecrag_at_home/pages/dashboard_page.dart';
+import 'package:thecrag_at_home/widgets/ascent_map.dart';
 import 'package:thecrag_at_home/widgets/contribution_grid.dart';
 import 'package:thecrag_at_home/widgets/year_chart.dart';
 
@@ -43,6 +44,8 @@ class _FakeRepo extends AscentRepository {
 }
 
 void main() {
+  layoutTests();
+  projectColumnTests();
   projectsTests();
   testWidgets('dashboard shows stats and grid', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 1600));
@@ -92,6 +95,79 @@ class _ProjectsRepo extends AscentRepository {
   );
 }
 
+void layoutTests() {
+  Future<void> pump(WidgetTester tester, Size size) async {
+    await tester.binding.setSurfaceSize(size);
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(repository: _FakeRepo())),
+    );
+    await tester.pump();
+    await tester.pump();
+  }
+
+  testWidgets('very wide screens put the map next to the calendar', (
+    tester,
+  ) async {
+    await pump(tester, const Size(2000, 1400));
+    final grid = tester.getRect(find.byType(ContributionGrid));
+    final map = tester.getRect(find.byType(AscentMap));
+    expect(map.left, greaterThan(grid.right)); // beside it, not below
+    expect(map.top, lessThan(grid.bottom));
+  });
+
+  testWidgets('narrower screens stack the map below the calendar', (
+    tester,
+  ) async {
+    await pump(tester, const Size(1500, 2000));
+    final grid = tester.getRect(find.byType(ContributionGrid));
+    final map = tester.getRect(find.byType(AscentMap));
+    expect(map.top, greaterThan(grid.bottom));
+  });
+}
+
+void projectColumnTests() {
+  Future<void> openTab(WidgetTester tester, Size size) async {
+    await tester.binding.setSurfaceSize(size);
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(repository: _ProjectsRepo())),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Open projects (1)'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('wide screens show the stages side by side', (tester) async {
+    await openTab(tester, const Size(1400, 1000));
+    final dog = tester.getTopLeft(find.text('Hang dog'));
+    final projected = tester.getTopLeft(find.text('Projected'));
+    final tried = tester.getTopLeft(find.text('Attempted'));
+    expect(projected.dx, greaterThan(dog.dx));
+    expect(tried.dx, greaterThan(projected.dx));
+    expect(projected.dy, dog.dy);
+  });
+
+  testWidgets('narrow screens show one stage, picked with chips', (
+    tester,
+  ) async {
+    await openTab(tester, const Size(600, 1600));
+    // Chips carry the counts; only the selected stage is listed.
+    expect(find.text('Hang dog (1)'), findsOneWidget);
+    expect(find.text('Projected (0)'), findsOneWidget);
+    expect(find.text('Attempted (0)'), findsOneWidget);
+    expect(find.text('Hard project'), findsOneWidget);
+
+    await tester.tap(find.text('Attempted (0)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hard project'), findsNothing);
+    expect(find.text('Nothing here.'), findsOneWidget);
+
+    await tester.tap(find.text('Hang dog (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hard project'), findsOneWidget);
+  });
+}
+
 void projectsTests() {
   testWidgets('open projects tab lists routes that were never sent', (
     tester,
@@ -111,6 +187,10 @@ void projectsTests() {
     expect(find.text('Sent route'), findsNothing);
     expect(find.text('7c'), findsOneWidget);
     expect(find.text('1 open project'), findsOneWidget);
-    expect(find.textContaining('hang dog'), findsOneWidget);
+    // Hang dog column holds it; the other two stages are empty.
+    expect(find.text('Hang dog'), findsOneWidget);
+    expect(find.text('Projected'), findsOneWidget);
+    expect(find.text('Attempted'), findsOneWidget);
+    expect(find.text('Nothing here.'), findsNWidgets(2));
   });
 }
