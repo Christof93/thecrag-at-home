@@ -141,18 +141,30 @@ void projectColumnTests() {
     await openTab(tester, const Size(1400, 1000));
     final dog = tester.getTopLeft(find.text('Hang dog'));
     final projected = tester.getTopLeft(find.text('Projected'));
-    final tried = tester.getTopLeft(find.text('Try'));
+    final tried = tester.getTopLeft(find.text('Attempted'));
     expect(projected.dx, greaterThan(dog.dx));
     expect(tried.dx, greaterThan(projected.dx));
     expect(projected.dy, dog.dy);
   });
 
-  testWidgets('narrow screens stack the stages', (tester) async {
+  testWidgets('narrow screens show one stage, picked with chips', (
+    tester,
+  ) async {
     await openTab(tester, const Size(600, 1600));
-    final dog = tester.getTopLeft(find.text('Hang dog'));
-    final projected = tester.getTopLeft(find.text('Projected'));
-    expect(projected.dy, greaterThan(dog.dy));
-    expect(projected.dx, dog.dx);
+    // Chips carry the counts; only the selected stage is listed.
+    expect(find.text('Hang dog (1)'), findsOneWidget);
+    expect(find.text('Projected (0)'), findsOneWidget);
+    expect(find.text('Attempted (0)'), findsOneWidget);
+    expect(find.text('Hard project'), findsOneWidget);
+
+    await tester.tap(find.text('Attempted (0)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hard project'), findsNothing);
+    expect(find.text('Nothing here.'), findsOneWidget);
+
+    await tester.tap(find.text('Hang dog (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hard project'), findsOneWidget);
   });
 }
 
@@ -178,7 +190,7 @@ void projectsTests() {
     // Hang dog column holds it; the other two stages are empty.
     expect(find.text('Hang dog'), findsOneWidget);
     expect(find.text('Projected'), findsOneWidget);
-    expect(find.text('Try'), findsOneWidget);
+    expect(find.text('Attempted'), findsOneWidget);
     expect(find.text('Nothing here.'), findsNWidgets(2));
   });
 }

@@ -44,8 +44,8 @@ enum ProjectStage {
   /// Worked on it (theCrag's "working", or a planned target).
   projected('Projected', 'Working on it'),
 
-  /// Tried, but not worked yet: attempts, retreats and the like.
-  tried('Try', 'Tried, not worked yet');
+  /// Attempted, but not worked yet: attempts, retreats and the like.
+  tried('Attempted', 'Tried, not worked yet');
 
   const ProjectStage(this.label, this.description);
 

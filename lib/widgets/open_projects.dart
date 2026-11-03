@@ -9,7 +9,8 @@ import 'year_chart.dart' show kindColor;
 enum ProjectSort { recent, hardest }
 
 /// Routes that were tried but never sent, in a column per [ProjectStage]
-/// (hang dog, projected, try). Stacked sections on narrow screens.
+/// (hang dog, projected, attempted). On narrow screens one stage at a time,
+/// picked with chips.
 class OpenProjectsView extends StatefulWidget {
   const OpenProjectsView({super.key, required this.projects});
 
@@ -26,6 +27,9 @@ class OpenProjectsView extends StatefulWidget {
 class _OpenProjectsViewState extends State<OpenProjectsView> {
   ProjectSort _sort = ProjectSort.recent;
   ClimbKind? _kind;
+
+  /// The stage shown on narrow screens, where the columns don't fit.
+  ProjectStage _stage = ProjectStage.hangDog;
 
   @override
   Widget build(BuildContext context) {
@@ -151,11 +155,25 @@ class _OpenProjectsViewState extends State<OpenProjectsView> {
                   ],
                 ],
               )
-            else
-              for (final stage in ProjectStage.values) ...[
-                stageColumn(stage),
-                const SizedBox(height: 16),
-              ],
+            else ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final stage in ProjectStage.values)
+                    ChoiceChip(
+                      label: Text(
+                        '${stage.label} '
+                        '(${shown.where((p) => p.stage == stage).length})',
+                      ),
+                      selected: _stage == stage,
+                      onSelected: (_) => setState(() => _stage = stage),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              stageColumn(_stage),
+            ],
           ],
         );
       },

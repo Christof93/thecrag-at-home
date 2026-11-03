@@ -17,10 +17,11 @@ A personal climbing dashboard built with Flutter, fed by your
   calendar stack on the left and the map fills the right.
 * **Open projects** (second tab): routes you tried but never sent, in a column
   per stage: **Hang dog** (all moves climbed, with rests), **Projected**
-  (worked on, theCrag's "working") and **Try** (attempts, retreats). A route
+  (worked on, theCrag's "working") and **Attempted** (attempts, retreats). A route
   sits in the furthest stage reached on any of its ascents, and drops off the
   list once any ascent of it was a send. Sort by last tried or hardest, filter
-  by sport / boulder / trad. Stacked on narrow screens.
+  by sport / boulder / trad. On narrow screens one stage at a time, picked
+  with chips.
 * Period filter (last 12 months, each year, all time) and summary tiles,
   including a **Multipitch** tile: ascents where you logged two or more
   pitches, and how many pitches that adds up to. theCrag doesn't expose a
