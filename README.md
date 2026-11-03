@@ -13,6 +13,8 @@ A personal climbing dashboard built with Flutter, fed by your
 * **Days out per year**: grouped columns of how many days you climbed sport,
   boulders and trad each year. Tap a year to select it.
 * **Most visited crags**: ranked by days out in the selected period.
+* **Layout**: one column on most screens; from 1700 px wide the charts and
+  calendar stack on the left and the map fills the right.
 * **Open projects** (second tab): routes you tried but never sent (hang dog,
   working, attempt, retreat, ...), newest first or hardest first, filterable
   by sport / boulder / trad. A route counts as sent if any ascent of it was a

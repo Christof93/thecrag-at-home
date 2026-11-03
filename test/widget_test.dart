@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thecrag_at_home/data/ascent_repository.dart';
 import 'package:thecrag_at_home/models/ascent.dart';
 import 'package:thecrag_at_home/pages/dashboard_page.dart';
+import 'package:thecrag_at_home/widgets/ascent_map.dart';
 import 'package:thecrag_at_home/widgets/contribution_grid.dart';
 import 'package:thecrag_at_home/widgets/year_chart.dart';
 
@@ -43,6 +44,7 @@ class _FakeRepo extends AscentRepository {
 }
 
 void main() {
+  layoutTests();
   projectsTests();
   testWidgets('dashboard shows stats and grid', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 1600));
@@ -90,6 +92,36 @@ class _ProjectsRepo extends AscentRepository {
       ),
     ],
   );
+}
+
+void layoutTests() {
+  Future<void> pump(WidgetTester tester, Size size) async {
+    await tester.binding.setSurfaceSize(size);
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(repository: _FakeRepo())),
+    );
+    await tester.pump();
+    await tester.pump();
+  }
+
+  testWidgets('very wide screens put the map next to the calendar', (
+    tester,
+  ) async {
+    await pump(tester, const Size(2000, 1400));
+    final grid = tester.getRect(find.byType(ContributionGrid));
+    final map = tester.getRect(find.byType(AscentMap));
+    expect(map.left, greaterThan(grid.right)); // beside it, not below
+    expect(map.top, lessThan(grid.bottom));
+  });
+
+  testWidgets('narrower screens stack the map below the calendar', (
+    tester,
+  ) async {
+    await pump(tester, const Size(1500, 2000));
+    final grid = tester.getRect(find.byType(ContributionGrid));
+    final map = tester.getRect(find.byType(AscentMap));
+    expect(map.top, greaterThan(grid.bottom));
+  });
 }
 
 void projectsTests() {
